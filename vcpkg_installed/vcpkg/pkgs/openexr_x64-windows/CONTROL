@@ -1,0 +1,7 @@
+Package: openexr
+Version: 3.4.13
+Depends: imath, libdeflate, openjph, vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 4a260db13b01e24ad137ab9f204092666c328003c764af17b08fd120954d3c53
+Description: OpenEXR is a high dynamic-range (HDR) image file format developed by Industrial Light & Magic for use in computer imaging applications

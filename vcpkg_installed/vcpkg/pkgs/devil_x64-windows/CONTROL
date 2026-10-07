@@ -1,0 +1,51 @@
+Package: devil
+Version: 1.8.0
+Port-Version: 13
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 8dde32f79c99f1c6d8001ad64dcea20707a30cbaba8335e2be48f6c92b756d49
+Description: A full featured cross-platform image library
+Default-Features: jasper, lcms, libjpeg, libpng, openexr, tiff
+
+Package: devil
+Feature: jasper
+Depends: jasper
+Architecture: x64-windows
+Multi-Arch: same
+Description: Use JasPer for .jp2 (and some .icns) support
+
+Package: devil
+Feature: lcms
+Depends: lcms
+Architecture: x64-windows
+Multi-Arch: same
+Description: Use Little CMS for color profiles
+
+Package: devil
+Feature: libjpeg
+Depends: libjpeg-turbo
+Architecture: x64-windows
+Multi-Arch: same
+Description: Use Libjpeg for .jpg (and some .blp) support
+
+Package: devil
+Feature: libpng
+Depends: libpng
+Architecture: x64-windows
+Multi-Arch: same
+Description: Use Libpng for .png (and some .ico)
+
+Package: devil
+Feature: openexr
+Depends: openexr
+Architecture: x64-windows
+Multi-Arch: same
+Description: Use openexr
+
+Package: devil
+Feature: tiff
+Depends: tiff
+Architecture: x64-windows
+Multi-Arch: same
+Description: Use Libtiff for .tif support

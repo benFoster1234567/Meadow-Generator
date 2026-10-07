@@ -1,0 +1,4 @@
+# ninja log v7
+7	891	8127710533544570	CMakeFiles/tinyobjloader.dir/tiny_obj_loader.cc.obj	7daa957f1c0c9fca
+892	947	8127710542391262	tinyobjloader.lib	cdbe899189c52ba9
+947	1065	8127710542946499	CMakeFiles/install.util	b2fc2a1d0eef9525
