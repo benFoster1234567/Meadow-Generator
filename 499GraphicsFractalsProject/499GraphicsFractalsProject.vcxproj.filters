@@ -48,4 +48,24 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="bark_diff.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="bark_spec.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="grass_diff.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="grass_spec.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="leaf_diff.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="leaf_spec.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
 </Project>
