@@ -110,7 +110,7 @@ Mesh cube(Cube{}, 0.5f);
 Mesh plane(Plane{}, 60.f);
 
 Branch mybranch{ 1.f, 8 };
-Tree myTree{12, 0.1f};
+Tree myTree{12, 0.2f};
 
 void growBranch(int times)
 {
@@ -166,7 +166,7 @@ static void initialize()
 		glm::rotate(glm::mat4(1.0f), nextFloat() * 2.0f * glm::pi<GLfloat>(), glm::vec3(0.0f, 1.0f, 0.0f)) *
 		glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
 	
-	myTree.reconstruct(local, level, 0, 0, 3.0f, 3.5f);
+	myTree.reconstruct(local, level, 0, 0, 3.0f, 5.5f);
 
 	//mybranch.initialize();
 }
@@ -256,10 +256,10 @@ static void display(Window& window)
 	if (prevLevel != level)
 	{
 		prevLevel = level;
-		myTree.reconstruct(1.0f, level, deltaX, deltaY, .1f, .5f);
+		myTree.reconstruct(local, level, deltaX, deltaY, 3.1f, 2.5f);
 	}
 
-	setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -4.0f, 0.0f)) * glm::scale(glm::mat4(1), { 5,5,5 }), program);
+	setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -4.0f, 0.0f)) * glm::scale(glm::mat4(1), { 1,1,1 }), program);
 	myTree.draw();
 
 	//branch(local, 20, deltaX, deltaY, 3.0f, 3.5f);

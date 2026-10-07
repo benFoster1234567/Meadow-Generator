@@ -48,7 +48,7 @@ public:
 			m_layerNorms.push_back(glm::normalize(glm::vec2{ x,y }));
 		}
 		m_lastOffset.resize(m_layerShape.size(), glm::vec2(0.0f));
-		addLayer(1.0f);
+		//addLayer(1.0f);
 	}
 
 	Branch(float side)
@@ -69,7 +69,7 @@ public:
 			glm::normalize(glm::vec2(1,-1)),
 		};
 		m_lastOffset.resize(m_layerShape.size(), glm::vec2(0.0f));
-		addLayer(glm::mat4{ 1.0f });
+		//addLayer(glm::mat4{ 1.0f });
 	}
 
 	Branch(Branch&& other) noexcept

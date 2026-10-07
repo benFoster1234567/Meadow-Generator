@@ -57,7 +57,8 @@ private:
 		std::vector<tinyobj::material_t> materials;
 		std::string warn, err;
 
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.data())) {
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.data())) 
+		{
 			std::cout << "Model mesh from " << path << " failed to load...\n";
 			return false;
 		}

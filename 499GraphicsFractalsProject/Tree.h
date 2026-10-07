@@ -13,15 +13,9 @@ private:
 		// Base radius set to 1.0f so girth directly controls the scale
 		Branch branch{ 1.0f, static_cast<int>(res) };
 
-
-
 		for (size_t s = 0; s < n; ++s)
 		{
-			local *=
-				glm::scale(glm::mat4(1), glm::vec3(0.9f,1.f, .9f)) *
-				glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-			branch.addLayer(local, .1);
-			/*GLfloat g = girth - girth * s / (GLfloat)n * 0.5f;
+			GLfloat g = girth - girth * s / (GLfloat)n * 0.5f;
 			GLfloat st = stride - stride * s / (GLfloat)n * 0.25f;
 
 			branch.addLayer(local *
@@ -42,17 +36,15 @@ private:
 			local *= glm::rotate(glm::mat4(1.0f), deltaY * 0.05f, glm::vec3(0.0f, 1.0f, 0.0f));
 
 			deltaX += (Random::nextFloat(0, 1) - Random::nextFloat(0, 1)) * Random::nextFloat(0, 1) * 2.0f;
-			deltaY += (Random::nextFloat(0, 1) - Random::nextFloat(0, 1)) * Random::nextFloat(0, 1) * 4.0f;*/
+			deltaY += (Random::nextFloat(0, 1) - Random::nextFloat(0, 1)) * Random::nextFloat(0, 1) * 4.0f;
 		}
 
 		if (n > 1) {
-			//// Fixed: Added explicit (0, 1) arguments for consistency
-			//GLfloat theta = Random::nextFloat(0, 1) * glm::pi<GLfloat>();
+			GLfloat theta = Random::nextFloat(0, 1) * glm::pi<GLfloat>();
 			construct(local *
 				glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 4.0f, glm::vec3(1.0f, 0.0f, 0.0f)), res, noise, n * 2 / 3, -deltaX, deltaY, girth * 0.5f, stride * 0.75f);
 			construct(local *
 				glm::rotate(glm::mat4(1.0f), -glm::pi<GLfloat>() / 4.0f, glm::vec3(1.0f, 0.0f, 0.0f)), res, noise, n * 2 / 3, -deltaX, deltaY, girth * 0.5f, stride * 0.75f);
-			
 		}
 
 		branches.push_back(std::move(branch));
