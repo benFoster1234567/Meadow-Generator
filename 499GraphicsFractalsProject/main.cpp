@@ -10,7 +10,9 @@
 #include "Mesh.h"
 #include "Tree.h"
 #include "Ui.h"
+#include "Grass.h"
 
+#include "Quad.h"
 
 const char* v_shader = R"(
 #version 430 core
@@ -18,6 +20,7 @@ const char* v_shader = R"(
 layout (location = 0) in vec3 in_Position;
 layout (location = 1) in vec3 in_Normal;
 layout (location = 2) in vec2 in_TexCoord0;
+layout (location = 3) in mat4 in_InstancePosition;
 
 layout (location = 0) out vec3 out_Position;
 layout (location = 1) out vec3 out_Normal;
@@ -30,10 +33,15 @@ uniform mat4 projection;
 uniform mat3 texture;
 
 void main() {
-	out_Position = vec3(model * vec4(in_Position, 1.0));
-	out_Normal = mat3(transpose(inverse(model))) * in_Normal;
+	mat4 worldModel = model * in_InstancePosition;
+
+	vec3 worldPosition = vec3(worldModel * vec4(in_Position, 1.0));
+
+	out_Position = worldPosition;
+
+	out_Normal = mat3(transpose(inverse(worldModel))) * in_Normal;
 	out_TexCoord0 = vec2(texture * vec3(in_TexCoord0, 1.0));
-	gl_Position = projection * view * model * vec4(in_Position, 1.0);
+	gl_Position = projection * view * vec4(worldPosition, 1.0);
 }
 )";
 
@@ -110,7 +118,9 @@ Mesh cube(Cube{}, 0.5f);
 Mesh plane(Plane{}, 60.f);
 
 Branch mybranch{ 1.f, 8 };
-Tree myTree{12, 0.2f};
+Tree myTree{24, 0.1f};
+Grass myGrass{};
+Quad myQuad{};
 
 void growBranch(int times)
 {
@@ -167,57 +177,7 @@ static void initialize()
 		glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
 	
 	myTree.reconstruct(local, level, 0, 0, 3.0f, 5.5f);
-
 	//mybranch.initialize();
-}
-
-void branch(glm::mat4 local, size_t n, GLfloat deltaX, GLfloat deltaY, GLfloat girth, GLfloat stride) {
-	for (size_t s = 0; s < n; s++) {
-		GLfloat g = girth - girth * s / (GLfloat)n * 0.5f;
-		GLfloat st = stride - stride * s / (GLfloat)n * 0.25f;
-		local *= glm::rotate(glm::mat4(1.0f), 0.1f, glm::vec3(0.0f, 0.0f, 1.0f));
-		
-		setMat4("model", local *
-			glm::scale(glm::mat4(1.0f), glm::vec3(g, g, st)) *
-			glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -0.5f)) *
-			glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 2.0f, glm::vec3(1.0f, 0.0f, 0.0f)), 
-			program
-		);
-
-		setMaterial(bark, program);
-		
-		cube.draw();
-		
-		if (s > n / 2 && nextFloat() < 0.75f) {
-			GLfloat theta = nextFloat() * glm::pi<GLfloat>();
-			branch(local *
-				glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 2.0f, glm::vec3(1.0f, 0.0f, 0.0f)) *
-				glm::rotate(glm::mat4(1.0f), theta, glm::vec3(0.0f, 1.0f, 0.0f)), n / 2, -deltaX, deltaY, g * 0.5f, st);
-		}
-
-		local *= glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -st));
-		local *= glm::rotate(glm::mat4(1.0f), deltaX * 0.1f, glm::vec3(1.0f, 0.0f, 0.0f));
-		local *= glm::rotate(glm::mat4(1.0f), deltaY * 0.05f, glm::vec3(0.0f, 1.0f, 0.0f));
-
-		deltaX += (nextFloat() - nextFloat()) * nextFloat() * 2;
-		deltaY += (nextFloat() - nextFloat()) * nextFloat() * 4;
-	}
-	if (n > 1) {
-		GLfloat theta = nextFloat() * glm::pi<GLfloat>();
-		branch(local *
-			glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 4.0f, glm::vec3(1.0f, 0.0f, 0.0f)), n * 2 / 3, -deltaX, deltaY, girth * 0.5f, stride * 0.75f);
-		branch(local *
-			glm::rotate(glm::mat4(1.0f), -glm::pi<GLfloat>() / 4.0f, glm::vec3(1.0f, 0.0f, 0.0f)), n * 2 / 3, -deltaX, deltaY, girth * 0.5f, stride * 0.75f);
-	}
-	else {
-		GLfloat leafScale = nextFloat() * 2.0f + 1.0f;
-		setMat4("model", local *
-			glm::scale(glm::mat4(1.0f), glm::vec3(leafScale)) *
-			glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 2.0f, glm::vec3(1.0f, 0.0f, 0.0f)), program
-		);
-		setMaterial(leaves, program);
-		cube.draw();
-	}
 }
 
 
@@ -261,7 +221,7 @@ static void display(Window& window)
 
 	setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -4.0f, 0.0f)) * glm::scale(glm::mat4(1), { 1,1,1 }), program);
 	myTree.draw();
-
+	myGrass.draw();
 	//branch(local, 20, deltaX, deltaY, 3.0f, 3.5f);
 	//branch(local, level, 0, 0, 3.0f, 3.5f);
 
@@ -306,7 +266,8 @@ int main(int argc, char** argv)
 
 
 	ui.addElement(std::make_unique<SliderInt>(SliderInt(&level, "Level", 1, 20)));
-	
+	myGrass.setDensity(5, 5, 50.f);
+	myGrass.initialize();
 	cube.initialize();
 	plane.initialize();
 	glm::mat4 projection = glm::perspective(glm::radians(100.0f), 1000.0f / 700.0f, 1.0f, 200.0f);

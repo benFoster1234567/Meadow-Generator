@@ -10,7 +10,7 @@ private:
 
 	void construct(glm::mat4 local, GLuint res, GLfloat noise, size_t n, GLfloat deltaX, GLfloat deltaY, GLfloat girth, GLfloat stride)
 	{
-		// Base radius set to 1.0f so girth directly controls the scale
+
 		Branch branch{ 1.0f, static_cast<int>(res) };
 
 		for (size_t s = 0; s < n; ++s)
@@ -25,6 +25,7 @@ private:
 
 			if (s > n / 2 && Random::nextFloat(0, 1) < 0.75f)
 			{
+
 				GLfloat theta = Random::nextFloat(0, 1) * glm::pi<GLfloat>();
 				construct(local *
 					glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 2.0f, glm::vec3(1.0f, 0.0f, 0.0f)) *
@@ -45,6 +46,11 @@ private:
 				glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 4.0f, glm::vec3(1.0f, 0.0f, 0.0f)), res, noise, n * 2 / 3, -deltaX, deltaY, girth * 0.5f, stride * 0.75f);
 			construct(local *
 				glm::rotate(glm::mat4(1.0f), -glm::pi<GLfloat>() / 4.0f, glm::vec3(1.0f, 0.0f, 0.0f)), res, noise, n * 2 / 3, -deltaX, deltaY, girth * 0.5f, stride * 0.75f);
+		}
+
+		else 
+		{
+			//draw leaves
 		}
 
 		branches.push_back(std::move(branch));

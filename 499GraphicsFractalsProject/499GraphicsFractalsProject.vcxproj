@@ -151,8 +151,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Branch.h" />
+    <ClInclude Include="Grass.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="OpenGL.h" />
+    <ClInclude Include="Quad.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="Tree.h" />
     <ClInclude Include="UI.h" />
