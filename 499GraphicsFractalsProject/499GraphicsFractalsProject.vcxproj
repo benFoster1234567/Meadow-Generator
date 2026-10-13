@@ -166,10 +166,26 @@
   <ItemGroup>
     <Image Include="bark_diff.png" />
     <Image Include="bark_spec.png" />
+    <Image Include="flowerPetal.png" />
     <Image Include="grass_diff.jpg" />
     <Image Include="grass_spec.png" />
+    <Image Include="leaf-front-back_height.png" />
+    <Image Include="leafDiff.png" />
+    <Image Include="leafnormal.png" />
+    <Image Include="leafSpec.png" />
     <Image Include="leaf_diff.png" />
     <Image Include="leaf_spec.png" />
+    <Image Include="stemDiff.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="bud.obj" />
+    <Object Include="bunny.obj" />
+    <Object Include="grass.obj" />
+    <Object Include="leaf1.obj" />
+    <Object Include="leaf2.obj" />
+    <Object Include="leaf3.obj" />
+    <Object Include="petals.obj" />
+    <Object Include="stem.obj" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

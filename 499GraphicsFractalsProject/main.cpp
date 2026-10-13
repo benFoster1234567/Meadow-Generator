@@ -111,7 +111,8 @@ vec3 blendSoftLight(vec3 baseColor, vec3 detailColor) {
 
 void main() 
 {
-	vec3 N = gl_FrontFacing ? normalize(in_Normal) : -normalize(in_Normal);
+	//vec3 N = gl_FrontFacing ? normalize(in_Normal) : -normalize(in_Normal);
+	vec3 N = normalize(in_Normal);
 	vec3 L = normalize(light.position);
 	vec3 E = normalize(viewPosition - in_Position);
 	vec3 H = normalize(L + E);
@@ -173,14 +174,14 @@ static void initialize()
 
 	bark.ambient = glm::vec3(1.0f);
 	bark.diffuse = glm::vec3(0.8f);
-	bark.specular = glm::vec3(0.4f);
+	bark.specular = glm::vec3(1.0f);
 	bark.shininess = 30.0f;
 	bark.diffuseMap = loadTexture("bark_diff.png");
 	bark.specularMap = loadTexture("bark_spec.png");
 
 	leaves.ambient = glm::vec3(0.06f, 0.5f, 0.1f);
-	leaves.diffuse = glm::vec3(0.06f, 0.5f, 0.1f);
-	leaves.specular = glm::vec3(0.2f);
+	leaves.diffuse = glm::vec3(0.06f, 0.8f, 0.1f);
+	leaves.specular = glm::vec3(1.0f);
 	leaves.shininess = 10.0f;
 	leaves.diffuseMap = loadTexture("leafDiff.png");
 	leaves.specularMap = loadTexture("leafSpec.png");

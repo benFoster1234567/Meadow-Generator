@@ -82,5 +82,49 @@
     <Image Include="leaf_spec.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="leafDiff.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="leaf-front-back_height.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="leafnormal.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="leafSpec.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="stemDiff.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="flowerPetal.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="bud.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
+    <Object Include="bunny.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
+    <Object Include="grass.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
+    <Object Include="leaf1.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
+    <Object Include="leaf2.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
+    <Object Include="leaf3.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
+    <Object Include="petals.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
+    <Object Include="stem.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
   </ItemGroup>
 </Project>

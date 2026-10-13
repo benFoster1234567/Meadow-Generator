@@ -1,13 +1,33 @@
 #pragma once
 #include "InstancedMesh.h"
 
-//#define OLD_PLANT
-#define NEW_PLANT
+#define OLD_PLANT
+//#define NEW_PLANT
 
 #ifdef NEW_PLANT
-class Plant
+class Plants
 {
+
+	// needs shader programs for the different components
+
+	InstancedMesh flowerStem{ Mesh{ "stem.obj" } };
+	InstancedMesh flowerPetals{ Mesh{"petals.obj"} };
+	InstancedMesh flowerLeaf1{ Mesh{"leaf1.obj"} };
+	InstancedMesh flowerLeaf1{ Mesh{"leaf2.obj"} };
+	InstancedMesh flowerLeaf1{ Mesh{"leaf3.obj"} };
+
 	
+
+public:
+
+	void initializePlants()
+	{
+
+	}
+
+
+
+
 };
 #endif
 
