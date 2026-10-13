@@ -145,16 +145,19 @@
   <ItemGroup>
     <ClCompile Include="Branch.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Plane.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vcpkg.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Branch.h" />
-    <ClInclude Include="Grass.h" />
+    <ClInclude Include="InstancedMesh.h" />
+    <ClInclude Include="Perlin.h" />
+    <ClInclude Include="Plane.h" />
+    <ClInclude Include="Plant.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="OpenGL.h" />
-    <ClInclude Include="Quad.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="Tree.h" />
     <ClInclude Include="UI.h" />
