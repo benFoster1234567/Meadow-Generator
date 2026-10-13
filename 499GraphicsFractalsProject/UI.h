@@ -9,7 +9,16 @@
 
 struct ImGuiElementBase
 {
+	bool m_isVisible = true;
 	virtual void render() = 0;
+	virtual bool visible() const
+	{
+		return m_isVisible;
+	}
+	virtual void setVisibility(bool v)
+	{
+		m_isVisible = v;
+	}
 };
 
 struct Button : public ImGuiElementBase
@@ -32,6 +41,7 @@ struct Button : public ImGuiElementBase
 
 };
 
+
 class SliderInt : public ImGuiElementBase
 {
 	std::string m_label{ "int slider" };
@@ -53,16 +63,38 @@ public:
 
 };
 
+class SliderFloat : public ImGuiElementBase
+{
+	std::string m_label{ "float slider" };
+	float m_min{ 0 };
+	float m_max{ 1 };
+	float* m_value{ nullptr };
+
+public:
+	SliderFloat(float* value, std::string_view label, float min, float max)
+		: m_label(label), m_min(min), m_max(max), m_value{ value }
+	{
+	}
+
+	void render() override
+	{
+		float i{};
+		ImGui::SliderFloat(m_label.c_str(), !m_value ? &i : m_value, m_min, m_max, ".3f");
+	}
+
+};
+
 struct Text : public ImGuiElementBase
 {
 	std::string str{ "" };
+
+	Text(std::string_view s) : str{ s } {}
 
 	void render() override
 	{
 		ImGui::Text(str.c_str());
 	}
 };
-
 
 class ImGuiUi
 {
@@ -101,9 +133,10 @@ public:
 		ImGui_ImplOpenGL3_Init(glsl_version);
 	}
 
-	void addElement(std::unique_ptr<ImGuiElementBase> element)
+	ImGuiElementBase* addElement(std::unique_ptr<ImGuiElementBase> element)
 	{
 		elements.push_back(std::move(element));
+		return elements.back().get();
 	}
 
 	void renderFrame(Window& window)
@@ -127,27 +160,13 @@ public:
 
 			for (auto& elem : elements)
 			{
-				elem->render();
+				if (elem->visible())
+				{
+					elem->render();
+				}
 			}
 
 			ImGui::End();
-			/*static float f = 0.0f;
-			static int counter = 0;
-
-			ImGui::Begin(m_windowTitle.c_str());
-
-			ImGui::Text("This is some useful text.");
-			ImGui::Checkbox("Demo Window", &show_demo_window);
-			ImGui::Checkbox("Another Window", &show_another_window);
-
-			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-
-			if (ImGui::Button("Button"))
-				counter++;
-			ImGui::SameLine();
-			ImGui::Text("counter = %d", counter);
-			ImGui::End();*/
-
 		}
 
 		if (show_demo_window)

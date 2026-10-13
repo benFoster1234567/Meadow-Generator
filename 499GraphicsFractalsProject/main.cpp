@@ -10,9 +10,10 @@
 #include "Mesh.h"
 #include "Tree.h"
 #include "Ui.h"
-#include "Grass.h"
+#include "Plant.h"
+#include "Plane.h"
 
-#include "Quad.h"
+#include <thread>
 
 const char* v_shader = R"(
 #version 430 core
@@ -20,12 +21,12 @@ const char* v_shader = R"(
 layout (location = 0) in vec3 in_Position;
 layout (location = 1) in vec3 in_Normal;
 layout (location = 2) in vec2 in_TexCoord0;
-layout (location = 3) in mat4 in_InstancePosition;
+layout (location = 3) in mat4 in_InstanceData;
 
 layout (location = 0) out vec3 out_Position;
 layout (location = 1) out vec3 out_Normal;
 layout (location = 2) out vec2 out_TexCoord0;
-layout (location = 3) out vec3 out_ViewPos;
+layout (location = 3) out vec3 out_color;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -33,7 +34,16 @@ uniform mat4 projection;
 uniform mat3 texture;
 
 void main() {
-	mat4 worldModel = model * in_InstancePosition;
+	mat4 m = in_InstanceData;
+
+	out_color = vec3(m[0].w, m[1].w, m[2].w);
+	
+	m[0].w = 0.0;
+	m[1].w = 0.0;
+	m[2].w = 0.0;
+	m[3].w = 1.0;
+
+	mat4 worldModel = m * model;
 
 	vec3 worldPosition = vec3(worldModel * vec4(in_Position, 1.0));
 
@@ -65,7 +75,7 @@ struct Light {
 layout (location = 0) in vec3 in_Position;
 layout (location = 1) in vec3 in_Normal;
 layout (location = 2) in vec2 in_TexCoord0;
-layout (location = 3) in vec3 in_ViewPos;
+layout (location = 3) in vec3 in_Color;
 
 layout (location = 0) out vec4 out_Color;
 
@@ -76,67 +86,70 @@ uniform vec3 viewPosition;
 uniform Light light;
 uniform Material material;
 
-void main() {
-	vec3 normal = gl_FrontFacing ? normalize(in_Normal) : -normalize(in_Normal);
-	vec3 lightDir = normalize(light.position);
-	//vec3 lightDir = normalize(light.position - in_Position);
-	float diff = max(dot(normal, lightDir), 0.0);
-	float spec = 0.0;
-	if (diff > 0.0) {
-		vec3 viewDir = normalize(viewPosition - in_Position);
-		//vec3 reflectDir = reflect(-lightDir, viewDir);
-		//spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-		vec3 halfDir = normalize(lightDir + viewDir);
-		spec = pow(max(dot(halfDir, normal), 0.0), material.shininess);
-	}
-	out_Color = vec4(
-		(
-			light.ambient * material.ambient +
-			light.diffuse * diff * material.diffuse
-		) * vec3(texture(diffuseMap, in_TexCoord0)) +
-		light.specular * spec * vec3(texture(specularMap, in_TexCoord0)) * material.specular,
-		1.0
-	);
+vec3 overlay(vec3 base, vec3 blend)
+{
+    vec3 multiply = 2.0 * base * blend;
+    vec3 screen   = 1.0 - 2.0 * (1.0 - base) * (1.0 - blend);
+    return mix(multiply, screen, step(0.5, base));
+}
+
+float softLightComponent(float base, float detail) {
+    if (detail <= 0.5) {
+        return base - (1.0 - 2.0 * detail) * base * (1.0 - base);
+    } else {
+        return base + (2.0 * detail - 1.0) * (sqrt(base) - base);
+    }
+}
+
+vec3 blendSoftLight(vec3 baseColor, vec3 detailColor) {
+    return vec3(
+        softLightComponent(baseColor.r, detailColor.r),
+        softLightComponent(baseColor.g, detailColor.g),
+        softLightComponent(baseColor.b, detailColor.b)
+    );
+}
+
+void main() 
+{
+	vec3 N = gl_FrontFacing ? normalize(in_Normal) : -normalize(in_Normal);
+	vec3 L = normalize(light.position);
+	vec3 E = normalize(viewPosition - in_Position);
+	vec3 H = normalize(L + E);
+
+	float Kd = max(dot(N, L), 0.0);
+	float Ks = Kd > 0 ? pow(max(dot(N, H), 0.0), material.shininess) : 0.0;
+
+	vec3 texColor = texture(diffuseMap, in_TexCoord0).rgb;
+	vec3 c = blendSoftLight(in_Color, texColor);
+
+	vec3 ambient = material.ambient * light.ambient * c;
+	vec3 specular = Ks * light.specular * material.specular * vec3(texture(specularMap, in_TexCoord0));
+	//vec3 diffuse = Kd * mix(light.diffuse , in_Color, 0.5) ;
+	
+	vec3 diffuse = light.diffuse * material.diffuse * c * Kd *2 ;
+
+	out_Color = vec4((ambient + diffuse + specular), 1.0);
+
 }
 )";
 
 GLuint program;
 Material ground, bark, leaves;
-GLfloat cameraYaw = 0.25f * glm::pi<GLfloat>();
-GLfloat cameraPitch = -0.4f;
 
-int lx, ly;
-
-int level = 12;
-int prevLevel = level;
-
-GLfloat nextFloat() {
-	return rand() / (GLfloat)RAND_MAX;
-}
-
-Mesh cube(Cube{}, 0.5f);
 Mesh plane(Plane{}, 60.f);
 
-Branch mybranch{ 1.f, 8 };
-Tree myTree{24, 0.1f};
-Grass myGrass{};
-Quad myQuad{};
+Plant plant{};
+Plant flower{};
+Plant groundPlane{};
 
-void growBranch(int times)
-{
-	glm::mat4 transform{ 1.f };
-	for (int i = 0; i < times; i++)
-	{
-		transform *= glm::scale(glm::mat4(1), {0.9,0.9,1})
-			* glm::translate(glm::mat4{ 1.f }, { 0,1,-0.5 })
-			* glm::rotate(glm::mat4(1), 0.2f, { 1,0,0 });
-		
-		mybranch.addLayer(transform, .1, 2);
-	}
-}
+float cameraSpeed{ 0.f };
+
+
+bool loading = false;
 
 static void initialize()
 {
+	loading = true;
 	//growBranch(5);
 	program = initializeShaders(v_shader, f_shader);
 	glUseProgram(program);
@@ -152,7 +165,7 @@ static void initialize()
 	setInt("specularMap", 1, program);
 	
     ground.ambient = glm::vec3(1.0f);
-    ground.diffuse = glm::vec3(0.8f);
+    ground.diffuse = glm::vec3(0.247f, 0.608f, 0.043f);
     ground.specular = glm::vec3(0.2f);
     ground.shininess = 200.0f;
     ground.diffuseMap = loadTexture("grass_diff.jpg");
@@ -167,25 +180,74 @@ static void initialize()
 
 	leaves.ambient = glm::vec3(0.06f, 0.5f, 0.1f);
 	leaves.diffuse = glm::vec3(0.06f, 0.5f, 0.1f);
-	leaves.specular = glm::vec3(0.8f);
-	leaves.shininess = 80.0f;
-	leaves.diffuseMap = loadTexture("leaf_diff.png");
-	leaves.specularMap = loadTexture("leaf_spec.png");
+	leaves.specular = glm::vec3(0.2f);
+	leaves.shininess = 10.0f;
+	leaves.diffuseMap = loadTexture("leafDiff.png");
+	leaves.specularMap = loadTexture("leafSpec.png");
 
-	glm::mat4 local = glm::translate(glm::mat4(1.0f), glm::vec3(0, -3.0f, 0)) *
-		glm::rotate(glm::mat4(1.0f), nextFloat() * 2.0f * glm::pi<GLfloat>(), glm::vec3(0.0f, 1.0f, 0.0f)) *
-		glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
-	
-	myTree.reconstruct(local, level, 0, 0, 3.0f, 5.5f);
-	//mybranch.initialize();
+	glViewport(0,0,1000, 700);
+	setMat4("projection", glm::perspective(glm::radians(100.0f), (GLfloat)1000 / 700, 1.0f, 200.0f), program);
+	//createPlane();
+
+
+
 }
 
+std::atomic<bool> isInitialized{ false };
+
+static void setupScene()
+{
+	plant.addComponent(Mesh{ "grass.obj" }, glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3(0.5, .3, .5)), ground, program);
+
+	glm::mat4 flowerTransform = glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.0f), glm::vec3(1.3, 1, 1.3));
+	//0.7098f, 0.8235f, 0.6784f
+	Material stem{ .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{0.23f, 0.58f, 0.18 }, .specular = glm::vec3(0.4), .shininess = 1, .diffuseMap = loadTexture("stemDiff.png") };
+	Material flowerMat{ .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{1,.2,.2},.specular = glm::vec3(0.4), .shininess = 1, .diffuseMap = loadTexture("flowerPetal.png") };
+	Material bud{ .ambient = glm::vec3{1.f}, .diffuse = {1, 1, 0} };
+
+	flower.addComponent(Mesh{ "stem.obj" }, flowerTransform, stem, program);
+
+	ModelComponent petalComponent(Mesh{ "petals.obj" }, flowerTransform, flowerMat, program);
+	petalComponent.colors.emplace_back(1.f, .5f, 0.f);
+	petalComponent.colors.emplace_back(.6, .6, 1);
+	petalComponent.colors.emplace_back(1, 0.5, 0.5);
+	petalComponent.colors.emplace_back(1, 1, 0);
+
+	//flower.addComponent(Mesh{ "petals.obj" }, flowerTransform, flowerMat, program);
+	flower.addComponent(petalComponent);
+	flower.addComponent(Mesh{ "bud.obj" }, flowerTransform, bud, program);
+	flower.addComponent(Mesh{ "leaf1.obj" }, flowerTransform, leaves, program);
+	flower.addComponent(Mesh{ "leaf2.obj" }, flowerTransform, leaves, program);
+	flower.addComponent(Mesh{ "leaf3.obj" }, flowerTransform, leaves, program);
+
+	groundPlane.addComponent(plane, glm::mat4(1), ground, program);
+	groundPlane.addInstanceTransform(glm::translate(glm::mat4(1), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3{ 10 }));
+	groundPlane.initialize();
+}
+
+static void generatePlants()
+{
+	auto now = std::chrono::steady_clock::now();
+	
+
+	plant.makeFractal(8, 6, 70, 3.f);
+	flower.makeFractal(5, 6, 80, 5, .5);
+
+	auto duration = std::chrono::steady_clock::now() - now;
+	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+
+	std::cout << "Setup time ms: " << milliseconds.count() << "\n";
+	std::cout << "Setup time s: " << seconds.count() << "\n";
+
+	isInitialized.store(true);
+}
 
 static void display(Window& window)
 {
 	static float angle = 0.f;
-	angle += 10.f * window.deltaTime();
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	angle += cameraSpeed * window.deltaTime();
+	
 	glUseProgram(program);
 
 	glm::vec4 eye = glm::rotate(glm::mat4{ 1 }, glm::radians(angle), { 0,1,0 }) * glm::vec4(0.0f, 20.0f, 60.0f, 1.0f);
@@ -195,44 +257,19 @@ static void display(Window& window)
 		glm::vec3(0.0f, 1.0f, 0.0f)
 	), program);
 	setVec3("viewPosition", eye, program);
-	// Ground
-	setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -4.0f, 0.0f)) * glm::scale(glm::mat4(1), { 10,10,10 }), program);
-	setMat3("texture", glm::mat3(glm::scale(glm::mat4(1.0f), glm::vec3(12.0f))), program);
+
 	setMaterial(ground, program);
-	plane.draw();
-	setMat3("texture", glm::mat3(glm::scale(glm::mat4(1.0f), glm::vec3(0.5f))), program);
-	setMaterial(bark, program);
-	srand(0x390F2A);
-	size_t treeCount = 1;
-	GLfloat theta = 2.0f * glm::pi<GLfloat>() * treeCount;
-	GLfloat x = glm::cos(theta) * 20.0f;
-	GLfloat z = glm::sin(theta) * 20.0f;
-	GLfloat deltaX = nextFloat() * 0.3f - 0.2f;
-	GLfloat deltaY = nextFloat() * 0.3f - 0.2f;
-	glm::mat4 local = glm::translate(glm::mat4(1.0f), glm::vec3(0, -3.0f, 0)) *
-		glm::rotate(glm::mat4(1.0f), nextFloat() * 2.0f * glm::pi<GLfloat>(), glm::vec3(0.0f, 1.0f, 0.0f)) *
-		glm::rotate(glm::mat4(1.0f), glm::pi<GLfloat>() / 2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
 
-	if (prevLevel != level)
-	{
-		prevLevel = level;
-		myTree.reconstruct(local, level, deltaX, deltaY, 3.1f, 2.5f);
-	}
+	setMat3("texture", glm::mat3(glm::scale(glm::mat4(1.0f), glm::vec3(12.0f))), program);
 
-	setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -4.0f, 0.0f)) * glm::scale(glm::mat4(1), { 1,1,1 }), program);
-	myTree.draw();
-	myGrass.draw();
-	//branch(local, 20, deltaX, deltaY, 3.0f, 3.5f);
-	//branch(local, level, 0, 0, 3.0f, 3.5f);
-
-	//mybranch.draw();
+	groundPlane.draw();
+	plant.draw();
+	flower.draw();
 
 }
 
 int main(int argc, char** argv)
 {
-
-
 	if (!glfwInit()) return -1;
 	Window window(1000, 700);
 	window.makeContextCurrent();
@@ -247,8 +284,38 @@ int main(int argc, char** argv)
 	
 	initialize();
 	
+	 
+	int number = 0;
 	ImGuiUi ui;
 	ui.setup(window);
+	
+	auto* text = static_cast<Text*>(ui.addElement(std::make_unique<Text>("")));
+	auto* slider = ui.addElement(std::make_unique<SliderFloat>(&cameraSpeed, "Camera Orbit Speed", 0.f, 20.f));
+	slider->setVisibility(false);
+	text->setVisibility(true);
+
+	auto animateLoading = [text](std::string_view str, float deltaTime)
+		{
+			char frames[4] = { '\\', '|', '/', '-' };
+
+			static unsigned int frame = 0;
+			static float timer = .5f;
+			timer = timer - deltaTime;
+			
+			if (timer < 0)
+			{
+				frame = (frame + 1) % 4;
+				timer = .5f;
+			}
+
+			std::string s = "";
+			s.push_back(frames[frame]);
+			s += " ";
+			s += str;
+
+			text->str = s;
+		};
+	
 
 	window.setKeyCallback([&window](int key, int scancode, int action, int mods)
 		{
@@ -264,26 +331,46 @@ int main(int argc, char** argv)
 			setMat4("projection", glm::perspective(glm::radians(100.0f), (GLfloat)w / h, 1.0f, 200.0f), program);
 		});
 
+	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
 
-	ui.addElement(std::make_unique<SliderInt>(SliderInt(&level, "Level", 1, 20)));
-	myGrass.setDensity(5, 5, 50.f);
-	myGrass.initialize();
-	cube.initialize();
-	plane.initialize();
-	glm::mat4 projection = glm::perspective(glm::radians(100.0f), 1000.0f / 700.0f, 1.0f, 200.0f);
-	setMat4("projection", projection, program);
+	int lock = 0;
+	std::thread setupThread(generatePlants);
+	lock = 1;
 
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-	//glEnable(GL_CULL_FACE);
+	setupScene();
 
 	while (!window.shouldClose())
 	{
-		display(window);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		if (!isInitialized.load())
+		{
+			animateLoading("Loading...", window.deltaTime());
+		}
+
+		else
+		{
+			if (setupThread.joinable())
+			{
+				setupThread.join();
+				std::cout << "joined\n";
+				text->setVisibility(false);
+				slider->setVisibility(true);
+				plant.initialize();
+				flower.initialize();
+			}
+
+			display(window);
+		}
+
+		
 		ui.renderFrame(window);
 		window.pollEvents();
 		window.swapBuffers();
 	}
-
+	if (setupThread.joinable()) 
+	{
+		setupThread.join();
+	}
 	return 0;
 }

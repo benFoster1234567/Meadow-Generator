@@ -43,19 +43,7 @@ public:
 	std::vector<unsigned int> m_indices{};
 
 private:
-
-	static constexpr GLuint kInstanceAttrib = 3;
-
 	bool   m_modelLoaded{ false };
-
-	GLuint m_vao{};
-	GLuint m_vbo{};
-	GLuint m_ebo{};
-	GLuint m_instancedBo{};
-
-	std::vector<glm::mat4> m_instances{};
-	size_t m_instanceCapacity{ 0 };
-	bool   m_instancesDirty{ false };
 
 	bool loadObjModel(std::string_view path)
 	{
@@ -118,6 +106,11 @@ private:
 			}
 		}
 
+		for (size_t i = 0; i + 2 < m_indices.size(); i += 3)
+		{
+			std::swap(m_indices[i + 1], m_indices[i + 2]);
+		}
+
 		m_modelLoaded = true;
 		return true;
 	}
@@ -177,56 +170,6 @@ private:
 		m_modelLoaded = true;
 	}
 
-	void destroy() noexcept
-	{
-		glDeleteBuffers(1, &m_vbo);
-		glDeleteBuffers(1, &m_ebo);
-		glDeleteBuffers(1, &m_instancedBo);
-		glDeleteVertexArrays(1, &m_vao);
-		m_vbo = m_ebo = m_instancedBo = m_vao = 0;
-		m_instanceCapacity = 0;
-	}
-
-	void uploadInstances()
-	{
-		glBindVertexArray(m_vao);
-		glBindBuffer(GL_ARRAY_BUFFER, m_instancedBo);
-
-		if (m_instances.empty())
-		{
-			for (GLuint i = 0; i < 4; ++i)
-			{
-				glDisableVertexAttribArray(kInstanceAttrib + i);
-				glVertexAttrib4f(kInstanceAttrib + i,
-					i == 0 ? 1.f : 0.f,
-					i == 1 ? 1.f : 0.f,
-					i == 2 ? 1.f : 0.f,
-					i == 3 ? 1.f : 0.f);
-			}
-		}
-		else
-		{
-			const size_t count = m_instances.size();
-			const GLsizeiptr bytes = static_cast<GLsizeiptr>(count * sizeof(glm::mat4));
-
-			if (count > m_instanceCapacity)
-			{
-				glBufferData(GL_ARRAY_BUFFER, bytes, m_instances.data(), GL_DYNAMIC_DRAW);
-				m_instanceCapacity = count;
-			}
-			else
-			{
-				glBufferSubData(GL_ARRAY_BUFFER, 0, bytes, m_instances.data());
-			}
-
-			for (GLuint i = 0; i < 4; ++i)
-				glEnableVertexAttribArray(kInstanceAttrib + i);
-		}
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
-		m_instancesDirty = false;
-	}
 
 public:
 	Mesh() = default;
@@ -246,133 +189,5 @@ public:
 		loadPlaneModel(size);
 	}
 
-	Mesh(const Mesh&) = delete;
-	Mesh& operator=(const Mesh&) = delete;
 
-	Mesh(Mesh&& other) noexcept
-		: m_data(std::exchange(other.m_data, {}))
-		, m_indices(std::exchange(other.m_indices, {}))
-		, m_modelLoaded(other.m_modelLoaded)
-		, m_vao(std::exchange(other.m_vao, 0))
-		, m_vbo(std::exchange(other.m_vbo, 0))
-		, m_ebo(std::exchange(other.m_ebo, 0))
-		, m_instancedBo(std::exchange(other.m_instancedBo, 0))
-		, m_instances(std::exchange(other.m_instances, {}))
-		, m_instanceCapacity(std::exchange(other.m_instanceCapacity, 0))
-		, m_instancesDirty(std::exchange(other.m_instancesDirty, false))
-	{
-	}
-
-	Mesh& operator=(Mesh&& other) noexcept
-	{
-		if (this != &other)
-		{
-			destroy();
-			m_data = std::exchange(other.m_data, {});
-			m_indices = std::exchange(other.m_indices, {});
-			m_modelLoaded = other.m_modelLoaded;
-			m_vao = std::exchange(other.m_vao, 0);
-			m_vbo = std::exchange(other.m_vbo, 0);
-			m_ebo = std::exchange(other.m_ebo, 0);
-			m_instancedBo = std::exchange(other.m_instancedBo, 0);
-			m_instances = std::exchange(other.m_instances, {});
-			m_instanceCapacity = std::exchange(other.m_instanceCapacity, 0);
-			m_instancesDirty = std::exchange(other.m_instancesDirty, false);
-		}
-		return *this;
-	}
-
-	~Mesh() { destroy(); }
-
-	void initialize()
-	{
-		destroy(); 
-		glGenVertexArrays(1, &m_vao);
-		glGenBuffers(1, &m_vbo);
-		glGenBuffers(1, &m_ebo);
-		glGenBuffers(1, &m_instancedBo);
-
-		glBindVertexArray(m_vao);
-
-		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-		glBufferData(GL_ARRAY_BUFFER, m_data.size() * sizeof(VertexData), m_data.data(), GL_STATIC_DRAW);
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices.size() * sizeof(unsigned int), m_indices.data(), GL_STATIC_DRAW);
-
-		const GLsizei stride = sizeof(VertexData);
-
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(VertexData, point));
-
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(VertexData, normal));
-
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(VertexData, texCoord));
-
-		glBindBuffer(GL_ARRAY_BUFFER, m_instancedBo);
-		for (GLuint i = 0; i < 4; ++i)
-		{
-			glVertexAttribPointer(kInstanceAttrib + i, 4, GL_FLOAT, GL_FALSE,
-				sizeof(glm::mat4), (void*)(i * sizeof(glm::vec4)));
-			glVertexAttribDivisor(kInstanceAttrib + i, 1);
-		}
-
-		glBindVertexArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		m_instancesDirty = true;
-	}
-
-	void addInstance(const glm::mat4& transform)
-	{
-		m_instances.push_back(transform);
-		m_instancesDirty = true;
-	}
-
-	void addInstance(glm::vec3 position,
-		glm::vec3 scale = glm::vec3(1.f),
-		glm::vec3 rotationAxis = glm::vec3(0.f, 1.f, 0.f),
-		float angleRadians = 0.f)
-	{
-		glm::mat4 m = glm::translate(glm::mat4(1.f), position);
-		if (angleRadians != 0.f)
-			m = glm::rotate(m, angleRadians, rotationAxis);
-		m = glm::scale(m, scale);
-		addInstance(m);
-	}
-
-	void setInstances(std::vector<glm::mat4> transforms)
-	{
-		m_instances = std::move(transforms);
-		m_instancesDirty = true;
-	}
-
-	void clearInstances()
-	{
-		m_instances.clear();
-		m_instancesDirty = true;
-	}
-
-	size_t instanceCount() const { return m_instances.size(); }
-
-	void draw()
-	{
-		if (m_instancesDirty)
-			uploadInstances();
-
-		glBindVertexArray(m_vao);
-
-		if (m_instances.empty())
-		{
-			glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_indices.size()),
-				GL_UNSIGNED_INT, (void*)0);
-		}
-		else
-		{
-			glDrawElementsInstanced(GL_TRIANGLES, static_cast<GLsizei>(m_indices.size()),
-				GL_UNSIGNED_INT, (void*)0, static_cast<GLsizei>(m_instances.size()));
-		}
-	}
 };

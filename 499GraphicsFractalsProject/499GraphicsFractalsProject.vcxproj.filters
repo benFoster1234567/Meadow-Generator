@@ -21,6 +21,9 @@
     <ClCompile Include="Branch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Plane.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vcpkg.json" />
@@ -47,10 +50,16 @@
     <ClInclude Include="Tree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Quad.h">
+    <ClInclude Include="Plant.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Grass.h">
+    <ClInclude Include="Perlin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Plane.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="InstancedMesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

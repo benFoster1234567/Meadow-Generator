@@ -13,14 +13,16 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-typedef struct {
+typedef struct 
+{
 	glm::vec3 ambient;
 	glm::vec3 diffuse;
 	glm::vec3 specular;
 	GLfloat shininess;
 	GLuint specularMap;
 	GLuint diffuseMap;
-} Material;
+} 
+Material;
 
 void setInt(const char* name, GLint value, GLuint& program) {
 	glUniform1i(glGetUniformLocation(program, name), value);
