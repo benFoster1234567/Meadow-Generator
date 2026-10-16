@@ -50,6 +50,7 @@ void main() {
 	out_Position = worldPosition;
 
 	out_Normal = mat3(transpose(inverse(worldModel))) * in_Normal;
+	//out_Normal = in_Normal;
 	out_TexCoord0 = vec2(texture * vec3(in_TexCoord0, 1.0));
 	gl_Position = projection * view * vec4(worldPosition, 1.0);
 }
@@ -111,13 +112,13 @@ vec3 blendSoftLight(vec3 baseColor, vec3 detailColor) {
 
 void main() 
 {
-	//vec3 N = gl_FrontFacing ? normalize(in_Normal) : -normalize(in_Normal);
-	vec3 N = normalize(in_Normal);
+	vec3 N = gl_FrontFacing ? normalize(in_Normal) : -normalize(in_Normal);
+	//vec3 N = normalize(in_Normal);
 	vec3 L = normalize(light.position);
 	vec3 E = normalize(viewPosition - in_Position);
 	vec3 H = normalize(L + E);
 
-	float Kd = max(dot(N, L), 0.0);
+	float Kd = max(dot(L, N), 0.0);
 	float Ks = Kd > 0 ? pow(max(dot(N, H), 0.0), material.shininess) : 0.0;
 
 	vec3 texColor = texture(diffuseMap, in_TexCoord0).rgb;
@@ -127,10 +128,10 @@ void main()
 	vec3 specular = Ks * light.specular * material.specular * vec3(texture(specularMap, in_TexCoord0));
 	//vec3 diffuse = Kd * mix(light.diffuse , in_Color, 0.5) ;
 	
-	vec3 diffuse = light.diffuse * material.diffuse * c * Kd *2 ;
-
+	vec3 diffuse = light.diffuse * material.diffuse * in_Color * Kd *2 ;
+//out_Color = vec4(N * 0.5 + 0.5, 1.0);
 	out_Color = vec4((ambient + diffuse + specular), 1.0);
-
+	//out_Color = vec4(Kd,Kd,Kd,1);
 }
 )";
 
@@ -164,13 +165,13 @@ static void initialize()
 	setVec3("light.specular", glm::vec3(1.0f), program);
 	setInt("diffuseMap", 0, program);
 	setInt("specularMap", 1, program);
-	
-    ground.ambient = glm::vec3(1.0f);
-    ground.diffuse = glm::vec3(0.247f, 0.608f, 0.043f);
-    ground.specular = glm::vec3(0.2f);
-    ground.shininess = 200.0f;
-    ground.diffuseMap = loadTexture("grass_diff.jpg");
-    ground.specularMap = loadTexture("grass_spec.png");
+
+	ground.ambient = glm::vec3(1.0f);
+	ground.diffuse = glm::vec3(0.247f, 0.56, 0.043f);
+	ground.specular = glm::vec3(0.5f);
+	ground.shininess = 15.0f;
+	ground.diffuseMap = loadTexture("grass_diff.jpg");
+	ground.specularMap = loadTexture("grass_spec.png");
 
 	bark.ambient = glm::vec3(1.0f);
 	bark.diffuse = glm::vec3(0.8f);
@@ -186,7 +187,7 @@ static void initialize()
 	leaves.diffuseMap = loadTexture("leafDiff.png");
 	leaves.specularMap = loadTexture("leafSpec.png");
 
-	glViewport(0,0,1000, 700);
+	glViewport(0, 0, 1000, 700);
 	setMat4("projection", glm::perspective(glm::radians(100.0f), (GLfloat)1000 / 700, 1.0f, 200.0f), program);
 	//createPlane();
 
@@ -229,7 +230,7 @@ static void setupScene()
 static void generatePlants()
 {
 	auto now = std::chrono::steady_clock::now();
-	
+
 
 	plant.makeFractal(8, 6, 70, 3.f);
 	flower.makeFractal(5, 6, 80, 5, .5);
@@ -248,7 +249,7 @@ static void display(Window& window)
 {
 	static float angle = 0.f;
 	angle += cameraSpeed * window.deltaTime();
-	
+
 	glUseProgram(program);
 
 	glm::vec4 eye = glm::rotate(glm::mat4{ 1 }, glm::radians(angle), { 0,1,0 }) * glm::vec4(0.0f, 20.0f, 60.0f, 1.0f);
@@ -264,6 +265,7 @@ static void display(Window& window)
 	setMat3("texture", glm::mat3(glm::scale(glm::mat4(1.0f), glm::vec3(12.0f))), program);
 
 	groundPlane.draw();
+	//flower.animateUpdate();
 	plant.draw();
 	flower.draw();
 
@@ -282,14 +284,14 @@ int main(int argc, char** argv)
 	}
 
 	ilInit();
-	
+
 	initialize();
-	
-	 
+
+
 	int number = 0;
 	ImGuiUi ui;
 	ui.setup(window);
-	
+
 	auto* text = static_cast<Text*>(ui.addElement(std::make_unique<Text>("")));
 	auto* slider = ui.addElement(std::make_unique<SliderFloat>(&cameraSpeed, "Camera Orbit Speed", 0.f, 20.f));
 	slider->setVisibility(false);
@@ -302,7 +304,7 @@ int main(int argc, char** argv)
 			static unsigned int frame = 0;
 			static float timer = .5f;
 			timer = timer - deltaTime;
-			
+
 			if (timer < 0)
 			{
 				frame = (frame + 1) % 4;
@@ -316,7 +318,7 @@ int main(int argc, char** argv)
 
 			text->str = s;
 		};
-	
+
 
 	window.setKeyCallback([&window](int key, int scancode, int action, int mods)
 		{
@@ -364,12 +366,12 @@ int main(int argc, char** argv)
 			display(window);
 		}
 
-		
+
 		ui.renderFrame(window);
 		window.pollEvents();
 		window.swapBuffers();
 	}
-	if (setupThread.joinable()) 
+	if (setupThread.joinable())
 	{
 		setupThread.join();
 	}

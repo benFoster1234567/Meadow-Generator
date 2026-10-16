@@ -106,10 +106,10 @@ private:
 			}
 		}
 
-		for (size_t i = 0; i + 2 < m_indices.size(); i += 3)
-		{
-			std::swap(m_indices[i + 1], m_indices[i + 2]);
-		}
+		//for (size_t i = 0; i + 2 < m_indices.size(); i += 3)
+		//{
+		//	std::swap(m_indices[i + 1], m_indices[i + 2]);
+		//}
 
 		m_modelLoaded = true;
 		return true;

@@ -53,13 +53,13 @@
     <ClInclude Include="Plant.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Perlin.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Plane.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="InstancedMesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Noise.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -100,31 +100,5 @@
     <Image Include="flowerPetal.png">
       <Filter>Resource Files</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <Object Include="bud.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
-    <Object Include="bunny.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
-    <Object Include="grass.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
-    <Object Include="leaf1.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
-    <Object Include="leaf2.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
-    <Object Include="leaf3.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
-    <Object Include="petals.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
-    <Object Include="stem.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
   </ItemGroup>
 </Project>

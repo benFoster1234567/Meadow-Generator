@@ -1,35 +1,8 @@
 #pragma once
 #include "InstancedMesh.h"
-
+#include <glm/gtx/transform2.hpp>
 #define OLD_PLANT
 //#define NEW_PLANT
-
-#ifdef NEW_PLANT
-class Plants
-{
-
-	// needs shader programs for the different components
-
-	InstancedMesh flowerStem{ Mesh{ "stem.obj" } };
-	InstancedMesh flowerPetals{ Mesh{"petals.obj"} };
-	InstancedMesh flowerLeaf1{ Mesh{"leaf1.obj"} };
-	InstancedMesh flowerLeaf1{ Mesh{"leaf2.obj"} };
-	InstancedMesh flowerLeaf1{ Mesh{"leaf3.obj"} };
-
-	
-
-public:
-
-	void initializePlants()
-	{
-
-	}
-
-
-
-
-};
-#endif
 
 #ifdef OLD_PLANT
 
@@ -38,6 +11,7 @@ public:
 #include "Random.h"
 #include "OpenGL.h"
 #include <queue>
+#include "Noise.h"
 
 
 //plants are made up of components, which have their own instance colors.
@@ -52,9 +26,9 @@ struct ModelComponent
 	GLuint program{ 0 };
 
 	Mesh mesh;
-	
+
 	glm::mat4 localTransform{ 1.f };
-	
+
 	Material material{ { 0.2f, 0.2f, 0.2f }, { 0.5f, 0.5f, 0.5f }, { 1.f, 1.f, 1.f }, 32.f, 0, 0 };
 
 	std::vector<glm::vec3> colors{};
@@ -71,11 +45,13 @@ class Plant
 	bool m_initialized{ false };
 	bool m_instancesChanged{ false };
 
+	Noise m_noise{};
+
 	std::vector<ModelComponent> m_components{};
 	std::vector<glm::mat4> m_instanceTransforms{};
 	std::vector<glm::vec4> m_instanceColors{};
 
-	glm::mat4 m_transform{1.f};
+	glm::mat4 m_transform{ 1.f };
 
 	void destroy()
 	{
@@ -101,6 +77,8 @@ class Plant
 		}
 		m_instancesChanged = false;
 	}
+
+
 
 	std::vector<glm::mat4> packData(const std::vector<glm::mat4>& transforms, const std::vector<glm::vec3>& colors)
 	{
@@ -179,6 +157,8 @@ public:
 		return m_components.size() - 1;
 	}
 
+
+
 	void addComponent(ModelComponent c)
 	{
 		m_components.push_back(c);
@@ -242,7 +222,7 @@ public:
 
 					float phi = rotFactor * theta;
 
-					glm::mat4 transform = translate(glm::mat4{ 1.f }, glm::vec3(x, 0, z)) * glm::rotate(glm::mat4(1), phi, glm::vec3(0,1,0));
+					glm::mat4 transform = translate(glm::mat4{ 1.f }, glm::vec3(x, 0, z)) * glm::rotate(glm::mat4(1), phi, glm::vec3(0, 1, 0));
 
 					stack.emplace_back(StackFrame{ .t = transform * stackFrame.t, .levels = stackFrame.levels - 1, .radius = stackFrame.radius * 0.333f });
 				}
@@ -306,6 +286,64 @@ public:
 		m_initialized = true;
 	}
 
+	void animateUpdate()
+	{
+		using namespace glm;
+		static Noise noise{};
+		static float theta{};
+		theta = theta + 0.1f;
+		quat q(vec3(0, theta, 0));
+
+		auto unpack = [](mat4& m) -> vec3
+			{
+				vec3 v = { m[0].w, m[1].w, m[2].w };
+				m[0].w = 0;
+				m[1].w = 0;
+				m[2].w = 0;
+				return v;
+			};
+
+		auto pack = [](mat4& m, const vec3& v)
+			{
+				m[0].w = v.x;
+				m[1].w = v.y;
+				m[2].w = v.z;
+			};
+
+		//just learned about ranges
+		std::vector<mat4> gpuData(m_instanceTransforms);
+
+		for (auto& m : gpuData)
+		{
+			float tx = m[3].x;
+			float tz = m[3].z;
+
+			vec3 color = unpack(m);
+
+			vec3 position{ m[3].x, 0.f, m[3].z };
+			position = q * position;
+
+			float n = noise.getValue({ position.x , position.z });
+
+			mat4 cleanShear = glm::shearX3D(mat4(1.0f), n, n);
+			mat4 finalTransform = cleanShear * m;
+			finalTransform = scale(finalTransform, vec3{ n });
+
+			// 5. Pack the color safely back into the newly generated matrix
+			pack(finalTransform, color);
+
+			// 6. Assign it back to the array
+			m = finalTransform;
+		}
+
+		for (auto& component : m_components)
+		{
+			glBindVertexArray(component.vao);
+			glBindBuffer(GL_ARRAY_BUFFER, component.instanceVbo);
+			glBufferData(GL_ARRAY_BUFFER, gpuData.size() * sizeof(glm::mat4), gpuData.data(), GL_DYNAMIC_DRAW);
+		}
+	}
+
 	void draw()
 	{
 		if (m_instancesChanged)
@@ -324,4 +362,93 @@ public:
 
 };
 
+#endif
+
+
+#ifdef NEW_PLANT
+class Plants
+{
+
+	// needs shader programs for the different components
+
+	InstancedMesh flowerStem{ Mesh{ "stem.obj" } };
+	InstancedMesh flowerPetals{ Mesh{"petals.obj"} };
+	InstancedMesh flowerLeaf1{ Mesh{"leaf1.obj"} };
+	InstancedMesh flowerLeaf1{ Mesh{"leaf2.obj"} };
+	InstancedMesh flowerLeaf1{ Mesh{"leaf3.obj"} };
+
+
+
+public:
+
+	void arrangePlants()
+	{
+
+	}
+
+	void initializePlants()
+	{
+
+	}
+
+	void makeFractal(unsigned int density, unsigned int levels, float radius, float randomize = 0.3f, float rotFactor = 1.0f)
+	{
+		glm::mat4 t{ 1.f };
+		size_t count = 0;
+		struct StackFrame
+		{
+			glm::mat4 t;
+			unsigned int levels;
+			float radius;
+		};
+
+		std::vector<StackFrame> stack{};
+		stack.reserve(10000000);
+		stack.push_back(StackFrame{ .t = t,.levels = levels, .radius = radius });
+
+		float interval = 2 * glm::pi<float>() / density;
+		float r = 2 * glm::pi<float>() / Random::nextFloat(0, randomize);
+
+		std::vector<glm::vec2> angledUnitVectors{};
+		angledUnitVectors.reserve(density);
+
+		for (int i{ 0 }; i < density; ++i)
+		{
+			float theta = i * interval + r;
+			angledUnitVectors.emplace_back(glm::cos(theta), glm::sin(theta));
+		}
+
+		while (!stack.empty())
+		{
+			StackFrame stackFrame = stack.back();
+			stack.pop_back();
+
+			if (stackFrame.levels > 0)
+			{
+				addInstanceTransform(stackFrame.t);
+				count++;
+				for (int i = 0; i < density; ++i)
+				{
+					float theta = i * interval + r;
+
+					float x = stackFrame.radius * angledUnitVectors[i].x + Random::nextFloat(-randomize, randomize); //replace with something way faster
+					float z = stackFrame.radius * angledUnitVectors[i].y + Random::nextFloat(-randomize, randomize);
+
+					glm::vec3 p = { x, 0, z };
+
+					float phi = rotFactor * theta;
+
+					glm::mat4 transform = translate(glm::mat4{ 1.f }, glm::vec3(x, 0, z)) * glm::rotate(glm::mat4(1), phi, glm::vec3(0, 1, 0));
+
+					stack.emplace_back(StackFrame{ .t = transform * stackFrame.t, .levels = stackFrame.levels - 1, .radius = stackFrame.radius * 0.333f });
+				}
+			}
+		}
+
+		std::cout << this << " - Rendered instances: " << count << "\n";
+
+	}
+
+
+};
 #endif
