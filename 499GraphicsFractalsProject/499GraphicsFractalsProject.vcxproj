@@ -143,15 +143,16 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Branch.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Plane.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vcpkg.json" />
+    <None Include="shader.frag" />
+    <None Include="shader.vert" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Branch.h" />
+    <ClInclude Include="Fractals.h" />
     <ClInclude Include="InstancedMesh.h" />
     <ClInclude Include="Noise.h" />
     <ClInclude Include="Plane.h" />
@@ -159,7 +160,9 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="OpenGL.h" />
     <ClInclude Include="Random.h" />
-    <ClInclude Include="Tree.h" />
+    <ClInclude Include="Shader.h" />
+    <ClInclude Include="SparseSet.h" />
+    <ClInclude Include="TreeGenerator.h" />
     <ClInclude Include="UI.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
@@ -176,6 +179,9 @@
     <Image Include="leaf_diff.png" />
     <Image Include="leaf_spec.png" />
     <Image Include="stemDiff.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Text.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

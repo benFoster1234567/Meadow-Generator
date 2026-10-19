@@ -3,38 +3,42 @@
 #include <numeric>
 #include <algorithm>
 #include <random>
+#include <glm/glm.hpp>
 #include <glm/ext/vector_float2.hpp>
 #include <glm/common.hpp>
 #include <glm/gtx/dual_quaternion.hpp>
 #include <fstream>
 
-inline static size_t fastRoundUp(float f)
+class Noise4D
 {
-	return static_cast<size_t>(f + 0.9999999f);
-}
 
-inline static size_t fastRoundDown(float f)
-{
-	return static_cast<size_t>(f);
-}
-
-class Noise
-{
 	std::array<int, 256> p{};
-
 	std::random_device rd;
 	std::mt19937 g;
+
+	std::array<glm::vec4, 16> gradients4D
+	{
+		glm::vec4{ 1.f, 1.f, 1.f, 1.f},
+		glm::vec4{ 1.f, 1.f, 1.f,-1.f},
+		glm::vec4{ 1.f, 1.f,-1.f, 1.f},
+		glm::vec4{ 1.f, 1.f,-1.f,-1.f},
+		glm::vec4{ 1.f,-1.f, 1.f, 1.f},
+		glm::vec4{ 1.f,-1.f, 1.f,-1.f},
+		glm::vec4{ 1.f,-1.f,-1.f, 1.f},
+		glm::vec4{ 1.f,-1.f,-1.f,-1.f},
+		glm::vec4{-1.f, 1.f, 1.f, 1.f},
+		glm::vec4{-1.f, 1.f, 1.f,-1.f},
+		glm::vec4{-1.f, 1.f,-1.f, 1.f},
+		glm::vec4{-1.f, 1.f,-1.f,-1.f},
+		glm::vec4{-1.f,-1.f, 1.f, 1.f},
+		glm::vec4{-1.f,-1.f, 1.f,-1.f},
+		glm::vec4{-1.f,-1.f,-1.f, 1.f},
+		glm::vec4{-1.f,-1.f,-1.f,-1.f}
+	};
 
 	float fade(float t)
 	{
 		return t * t * t * (t * (t * 6 - 15) + 10);
-	}
-
-	glm::vec2 gradient(float x, float y)
-	{
-		int h = p[p[static_cast<int>(x) & 255] + static_cast<int>(y) & 255];
-		const float theta = static_cast<float>(h) / static_cast<float>(256) * 2 * glm::pi<float>();
-		return { glm::cos(theta), glm::sin(theta) };
 	}
 
 	float lerp(float a, float b, float factor)
@@ -42,65 +46,154 @@ class Noise
 		return a + factor * (b - a);
 	}
 
+	glm::vec4 gradient(const glm::vec4& target)
+	{
+		int x = static_cast<int>(std::floor(target.x));
+		int y = static_cast<int>(std::floor(target.y));
+		int z = static_cast<int>(std::floor(target.z));
+		int w = static_cast<int>(std::floor(target.w));
+
+		int h = p[p[p[p[x & 255] + y & 255] + z & 255] + w & 255];
+
+		return gradients4D[h & 15];
+	}
+
 public:
-	Noise()
+
+	Noise4D()
 	{
 		g = std::mt19937(rd());
 		std::iota(p.begin(), p.end(), 0);
 		std::shuffle(p.begin(), p.end(), g);
 	}
 
-	float getValue(glm::vec2 target)
+	float compute(const glm::vec4& p)
 	{
-		float x = target.x
-			, y = target.y
-			, x0 = std::floor(target.x)
-			, y0 = std::floor(target.y)
-			, x1 = x0 + 1
-			, y1 = y0 + 1;
+		using namespace glm;
+		vec4 p0 = glm::floor(p);
 
-		glm::vec2 LL = glm::vec2{ x,y } - glm::vec2{ x0, y0 };
-		glm::vec2 LU = glm::vec2{ x,y } - glm::vec2{ x0, y1 };
-		glm::vec2 UL = glm::vec2{ x,y } - glm::vec2{ x1, y0 };
-		glm::vec2 UU = glm::vec2{ x,y } - glm::vec2{ x1, y1 };
+		std::array<float, 16> influence{};
 
-		float TR = glm::dot(gradient(x1, y1), UU);
-		float BR = glm::dot(gradient(x1, y0), UL);
-		float TL = glm::dot(gradient(x0, y1), LU);
-		float BL = glm::dot(gradient(x0, y0), LL);
-
-		float u = fade(x - x0);
-		float v = fade(y - y0);
-
-		float left = lerp(BL, TL, v);
-		float right = lerp(BR, TR, v);
-
-		return lerp(left, right, u) * 0.5f + 0.5f;
-	}
-
-	void toPpm(float div)
-	{
-		std::ofstream stream{ "noiseTestOut.ppm" };
-
-		struct {
-			size_t w = 400;
-			size_t h = 300;
-		} noiseRender;
-
-		stream << "P3\n" << noiseRender.w << " " << noiseRender.h << "\n255\n";
-		for (int i{}; i < noiseRender.h; i++)
+		for (int n{ 0 }; n < 16; ++n)
 		{
-			for (int j{}; j < noiseRender.w; j++)
-			{
-				auto noiseOut = getValue(glm::vec2(static_cast<float>(j) / div, static_cast<float>(i) / div));
-				int r = noiseOut * 255;
-				int g = noiseOut * 255;
-				int b = noiseOut * 255;
-				stream << r << " " << g << " " << b << " ";
-			}
-			stream << "\n";
+			auto vecSource = vec4{
+			static_cast<float>(n >> 3 & 1),
+			static_cast<float>(n >> 2 & 1),
+			static_cast<float>(n >> 1 & 1),
+			static_cast<float>(n & 1)
+			} + p0;
+
+			vec4 distance = p - (vecSource);
+			influence[n] = dot(gradient(vecSource), distance);
 		}
 
+		float u = fade(p.x - p0.x);
+		float v = fade(p.y - p0.y);
+		float w = fade(p.z - p0.z);
+		float t = fade(p.w - p0.w);
+
+		//interpolate x
+		std::array<float, 8> wInterp{};
+		for (int l{ 0 }; l < 8; ++l)
+		{
+			int h = l + 8;
+			wInterp[l] = lerp(influence[l], influence[h], u);
+		}
+
+		//interpolate y
+		std::array<float, 4> zInterp{};
+		for (int l{ 0 }; l < 4; ++l)
+		{
+			int h = l + 4;
+			zInterp[l] = lerp(wInterp[l], wInterp[h], v);
+		}
+
+		//interpolate z
+		std::array<float, 2> yInterp{};
+		for (int l{ 0 }; l < 2; ++l)
+		{
+			int h = l + 2;
+			yInterp[l] = lerp(zInterp[l], zInterp[h], w);
+		}
+
+		//interpolate w
+		float result = lerp(zInterp[0], zInterp[1], t);
+		//return result;
+		return std::clamp(result * 0.5f + 0.5f, 0.0f, 1.0f);
+	}
+
+	void savebmp(const char* filename, int wisth, int h, int dpi, float z, float w)
+	{
+		FILE* f;
+		int k = wisth * h;
+		int s = 4 * k;
+		int filesize = 54 + s;
+
+		double factor = 39.375;
+		int m = static_cast<int>(factor);
+		int ppm = dpi * m;
+
+		unsigned char bmpfileheader[14] = { 'B', 'M',  0, 0, 0, 0,  0, 0, 0, 0,  54, 0, 0, 0 };
+		unsigned char bmpinfoheader[40] = { 40, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  1, 0, 24, 0 };
+
+		bmpfileheader[2] = (unsigned char)(filesize);
+		bmpfileheader[3] = (unsigned char)(filesize >> 8);
+		bmpfileheader[4] = (unsigned char)(filesize >> 16);
+		bmpfileheader[5] = (unsigned char)(filesize >> 24);
+
+		bmpinfoheader[4] = (unsigned char)(wisth);
+		bmpinfoheader[5] = (unsigned char)(wisth >> 8);
+		bmpinfoheader[6] = (unsigned char)(wisth >> 16);
+		bmpinfoheader[7] = (unsigned char)(wisth >> 24);
+
+		bmpinfoheader[8] = (unsigned char)(h);
+		bmpinfoheader[9] = (unsigned char)(h >> 8);
+		bmpinfoheader[10] = (unsigned char)(h >> 16);
+		bmpinfoheader[11] = (unsigned char)(h >> 24);
+
+		bmpinfoheader[21] = (unsigned char)(s);
+		bmpinfoheader[22] = (unsigned char)(s >> 8);
+		bmpinfoheader[23] = (unsigned char)(s >> 16);
+		bmpinfoheader[24] = (unsigned char)(s >> 24);
+
+		bmpinfoheader[25] = (unsigned char)(ppm);
+		bmpinfoheader[26] = (unsigned char)(ppm >> 8);
+		bmpinfoheader[27] = (unsigned char)(ppm >> 16);
+		bmpinfoheader[28] = (unsigned char)(ppm >> 24);
+
+		bmpinfoheader[29] = (unsigned char)(ppm);
+		bmpinfoheader[30] = (unsigned char)(ppm >> 8);
+		bmpinfoheader[31] = (unsigned char)(ppm >> 16);
+		bmpinfoheader[32] = (unsigned char)(ppm >> 24);
+
+		fopen_s(&f, filename, "wb");
+		fwrite(bmpfileheader, 1, 14, f);
+		fwrite(bmpinfoheader, 1, 40, f);
+
+		std::vector<float> data{};
+
+		for (int i{}; i < wisth; ++i)
+		{
+			for (int j{}; j < h; ++j)
+			{
+				float x = static_cast<float>(i) / 20;
+				float y = static_cast<float>(j) / 20;
+
+				data.push_back(compute({ x,y,z, w }));
+			}
+		}
+
+		for (int i = 0; i < data.size(); i++) {
+
+			double red = (data[i]) * 255;
+			double green = (data[i]) * 255;
+			double blue = (data[i]) * 255;
+
+			unsigned char color[3] = { (int)floor(blue), (int)floor(green), (int)floor(red) };
+
+			fwrite(color, 1, 3, f);
+		}
+		fclose(f);
 	}
 
 };

@@ -45,7 +45,7 @@ class Plant
 	bool m_initialized{ false };
 	bool m_instancesChanged{ false };
 
-	Noise m_noise{};
+	Noise4D m_noise{};
 
 	std::vector<ModelComponent> m_components{};
 	std::vector<glm::mat4> m_instanceTransforms{};
@@ -157,7 +157,33 @@ public:
 		return m_components.size() - 1;
 	}
 
+	void wigglePlants()
+	{
+		static float f = 0.f;
+		f += 0.01f;
+		
+		for (auto& component : m_components)
+		{
+			std::vector<VertexData> updatedVerts = component.mesh.m_data;
+			std::vector<VertexData> temp = component.mesh.m_data;
 
+			for (auto& v : updatedVerts)
+			{
+				float offset = m_noise.compute(glm::vec4{ v.point.x, v.point.y, v.point.z, f}) / 10;
+				float yNorm = glm::normalize(v.point).y;
+				v.point.x += offset * yNorm;
+				v.point.z += offset * yNorm;
+			}
+
+			component.mesh.m_data.assign(updatedVerts.begin(), updatedVerts.end());
+			glBindVertexArray(component.vao);
+			glBindBuffer(GL_ARRAY_BUFFER, component.vbo);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, component.mesh.m_data.size() * sizeof(VertexData), component.mesh.m_data.data());
+			component.mesh.m_data.assign(temp.begin(), temp.end());
+
+		}
+
+	}
 
 	void addComponent(ModelComponent c)
 	{
@@ -284,64 +310,6 @@ public:
 		}
 
 		m_initialized = true;
-	}
-
-	void animateUpdate()
-	{
-		using namespace glm;
-		static Noise noise{};
-		static float theta{};
-		theta = theta + 0.1f;
-		quat q(vec3(0, theta, 0));
-
-		auto unpack = [](mat4& m) -> vec3
-			{
-				vec3 v = { m[0].w, m[1].w, m[2].w };
-				m[0].w = 0;
-				m[1].w = 0;
-				m[2].w = 0;
-				return v;
-			};
-
-		auto pack = [](mat4& m, const vec3& v)
-			{
-				m[0].w = v.x;
-				m[1].w = v.y;
-				m[2].w = v.z;
-			};
-
-		//just learned about ranges
-		std::vector<mat4> gpuData(m_instanceTransforms);
-
-		for (auto& m : gpuData)
-		{
-			float tx = m[3].x;
-			float tz = m[3].z;
-
-			vec3 color = unpack(m);
-
-			vec3 position{ m[3].x, 0.f, m[3].z };
-			position = q * position;
-
-			float n = noise.getValue({ position.x , position.z });
-
-			mat4 cleanShear = glm::shearX3D(mat4(1.0f), n, n);
-			mat4 finalTransform = cleanShear * m;
-			finalTransform = scale(finalTransform, vec3{ n });
-
-			// 5. Pack the color safely back into the newly generated matrix
-			pack(finalTransform, color);
-
-			// 6. Assign it back to the array
-			m = finalTransform;
-		}
-
-		for (auto& component : m_components)
-		{
-			glBindVertexArray(component.vao);
-			glBindBuffer(GL_ARRAY_BUFFER, component.instanceVbo);
-			glBufferData(GL_ARRAY_BUFFER, gpuData.size() * sizeof(glm::mat4), gpuData.data(), GL_DYNAMIC_DRAW);
-		}
 	}
 
 	void draw()

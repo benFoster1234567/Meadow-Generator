@@ -41,7 +41,6 @@ private:
 		return transform;
 	}
 
-	GLuint shaderProgram{};
 	GLuint m_vao{};
 	GLuint m_vbo{};
 	GLuint m_ebo{};
@@ -49,10 +48,11 @@ private:
 
 	bool m_dirty = false;
 	bool m_initialized = false;
-	Mesh mesh{};
 
 public:
 
+	Mesh mesh{};
+	GLuint shaderProgram{};
 	InstancedMesh() = default;
 
 	explicit InstancedMesh(const Mesh& mesh, GLuint shaderProgram = 0)
