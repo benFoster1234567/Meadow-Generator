@@ -165,7 +165,7 @@ bool loading = false;
 static void initialize()
 {
 	loading = true;
-	//growBranch(5);
+
 	program = initializeShaders(v_shader, f_shader);
 	glUseProgram(program);
 	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
@@ -202,21 +202,21 @@ static void initialize()
 
 	glViewport(0, 0, 1000, 700);
 	setMat4("projection", glm::perspective(glm::radians(100.0f), (GLfloat)1000 / 700, 1.0f, 200.0f), program);
-	//createPlane();
-	
 
 	TreeGenerator t{ 4,16 };
 
-	testTree = t.genNewMesh(20, .5f);
+	float deltaX = 30.5f;
+	float stride = 2.0f;
+
+	t.generateBranch(-1, glm::mat4(1), 5, 10, { 2,1,2 }, deltaX, 10.5f, stride, 5.0f);
+	testTree = t.getMesh();
 	meshy.mesh = testTree;
 	meshy.shaderProgram = program;
 
-
-	meshy.addInstance(glm::translate(glm::mat4{ 1 }, glm::vec3{ 0,-4,0 }));
-
+	meshy.addInstance(glm::translate(glm::mat4{ 1 }, glm::vec3{ 0,-4,0 }) * glm::scale(glm::mat4(1), glm::vec3(1)));
+	//meshy.addInstance(glm::translate(glm::mat4{ 1 }, glm::vec3{ 0,-4,0 }) * glm::rotate(glm::mat4(1), -0.4f, glm::vec3(1, 0, 0)) * glm::scale(glm::mat4(1), glm::vec3(1)));
 
 	meshy.initialize();
-
 
 }
 
@@ -290,7 +290,7 @@ static void display(Window& window)
 
 	setMat3("texture", glm::mat3(glm::scale(glm::mat4(1.0f), glm::vec3(12.0f))), program);
 
-	groundPlane.draw();
+	//groundPlane.draw();
 	//flower.animateUpdate();
 	plant.draw();
 	flower.draw();

@@ -17,7 +17,7 @@ inline constexpr bool is_unique_ptr_v = is_unique_ptr_struct<std::remove_cvref_t
 template <typename T>
 concept IsUniquePtr = is_unique_ptr_v<T>;
 
-template <typename T, size_t SparseMax = 256, size_t Capacity = 128>
+template <typename T, size_t SparseMax = 2048, size_t Capacity = 1024>
 class SparseSet
 {
 private:
@@ -32,6 +32,11 @@ public:
 		m_sparse.resize(SparseMax, Capacity);
 		m_dense.reserve(Capacity);
 		m_denseToSparse.reserve(Capacity);
+	}
+
+	bool full()
+	{
+		return m_denseToSparse.size() == Capacity;
 	}
 
 	bool contains(size_t index)

@@ -51,7 +51,7 @@ private:
 				offset = glm::vec2{
 					m_noise.compute({ pos, noise }),
 					m_noise.compute({ pos, noise + 10.f })
-				} * displacementScale;
+				} * noise;
 			}
 
 			const glm::vec3 pos = glm::vec3(transform * glm::vec4(px + offset.x, 0.f, pz + offset.y, 1.f));
@@ -137,7 +137,7 @@ private:
 	{
 
 	}
-	
+
 
 	size_t m_layerCount{ 0 };
 
@@ -146,8 +146,6 @@ private:
 	glm::mat4 m_lastTransform{};
 	std::vector<glm::vec2> m_lastOffset{};
 
-	void addLayerHelper(const glm::mat4& transform, std::vector<glm::vec2> offsets);
-	void subdivideLayerArgs(std::vector<glm::mat4>& transforms, std::vector<std::vector<glm::vec2>>& offsets, int layerSize);
 	std::vector<glm::vec3> m_instancePositions{};
 
 public:
@@ -187,30 +185,148 @@ public:
 		m_lastOffset.resize(m_layerShape.size(), glm::vec2(0.0f));
 	}
 
-	Mesh genNewMesh(int deep, float noiseScale)
+
+
+	int generateBranch(int parent, glm::mat4 local, int levels, int n, glm::vec3 scale, float deltaX, float deltaZ, float stride, float noiseScale)
 	{
-		m_data.clear();
-		m_indices.clear();
+		parent = addLayer(parent, local * glm::scale(glm::mat4(1), scale), noiseScale);
 
-		int parent = -1;
-		glm::mat4 transform = glm::mat4(1.0f);
-
-		for (int i = 0; i < deep; ++i)
+		if (levels <= 0)
 		{
-			float t = static_cast<float>(i) / static_cast<float>(deep);
-			float noiseX = (m_noise.compute(glm::vec4(0.0f, static_cast<float>(i), 0.0f, 0.0f)) * 2.0f - 1.0f) * noiseScale;
-			float noiseZ = (m_noise.compute(glm::vec4(0.0f, static_cast<float>(i), 0.0f, 1.0f)) * 2.0f - 1.0f) * noiseScale;
-			transform = glm::translate(transform, glm::vec3(noiseX, 1.0f, noiseZ));
-			float radiusScale = 1.0f - (t * 0.8f);
-			glm::mat4 layerTransform = glm::scale(transform, glm::vec3(radiusScale, 1.0f, radiusScale));
-			parent = addLayer(parent, layerTransform, 1.f);
+			return parent;
 		}
 
-		Mesh mesh;
-		mesh.m_data = m_data;
-		mesh.m_indices = m_indices;
+		struct StackFrame
+		{
+			int parent;
+			glm::mat4 local;
+			int levels;
+			int n;
+			glm::vec3 scale;
+			float deltaX;
+			float deltaZ;
+			float stride;
+		};
 
-		return mesh;
+		std::vector<StackFrame> stack{};
+
+		{
+			StackFrame s = {
+				.parent = parent,
+				.local = local,
+				.levels = levels,
+				.n = n,
+				.scale = scale,
+				.deltaX = deltaX,
+				.deltaZ = deltaZ,
+				.stride = stride
+			};
+			stack.push_back(s);
+		}
+
+		while (!stack.empty())
+		{
+			StackFrame sf = stack.back();
+			stack.pop_back();
+
+			if (sf.levels < 1)
+			{
+				continue;
+			}
+
+
+			sf.parent = addLayer(sf.parent, sf.local * glm::scale(glm::mat4(1), sf.scale), noiseScale);
+
+			float radX = sf.stride / sf.deltaX;
+
+			float theta = 0.f;
+
+			float scaleFactor = 0.1f;
+			for (int i{}; i < sf.n; ++i)
+			{
+				theta += glm::radians(360.f / static_cast<float>(n));
+
+				glm::mat4 tPivotInvX = glm::translate(glm::mat4(1), glm::vec3(-sf.deltaX, 0, 0));
+				glm::mat4 tPivotInvZ = glm::translate(glm::mat4(1), glm::vec3(0, 0, -sf.deltaZ));
+				glm::mat4 tPivotX = glm::translate(glm::mat4(1), glm::vec3(sf.deltaX, 0, 0));
+				glm::mat4 tPivotZ = glm::translate(glm::mat4(1), glm::vec3(0, 0, sf.deltaZ));
+
+				glm::mat4 rotX = glm::rotate(glm::mat4(1), radX, { 0,0,1 });
+				glm::mat4 rotZ = glm::rotate(glm::mat4(1), radX, { 1,0,0 });
+
+				sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvX * rotX * tPivotX);
+				sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvZ * rotZ * tPivotZ);
+				//local = local * glm::translate(glm::mat4(1), glm::vec3(0, stride, 0)) * (tPivotInvX * rotX * tPivotX);
+
+				float t = static_cast<float>(i + 1) / static_cast<float>(n + 1);
+				scaleFactor = 0.2f + 1 / (10 * (2 * t * glm::sqrt(t) + 0.1f));
+
+				glm::vec3 scaleTemp = glm::vec3(scaleFactor * sf.scale.x, sf.scale.y, scaleFactor * sf.scale.z);
+
+				sf.parent = addLayer(sf.parent, sf.local * glm::scale(glm::mat4(1), sf.scale * scaleFactor), noiseScale);
+
+				if (i > sf.n * 2 / 3)
+				{
+					float d = Random::nextFloat(-20.f, 45.f) + 90.f;
+					theta += glm::radians(360.f / static_cast<float>(n));
+
+					glm::vec3 axis = glm::normalize(glm::vec3(Random::nextFloat(), 0, Random::nextFloat()));
+
+					for (int i{}; i < 2; i++)
+					{
+						StackFrame s = {
+							.parent = sf.parent,
+							.local = sf.local * glm::rotate(glm::mat4(1), theta, {0,1,0}) * glm::rotate(glm::mat4(1), glm::radians(90.f), glm::vec3(1,0,0)),
+							.levels = sf.levels - 1,
+							.n = sf.n / 2,
+							.scale = sf.scale * scaleFactor,
+							.deltaX = sf.deltaX * 2 / 3,
+							.deltaZ = sf.deltaZ * -2 / 3,
+							.stride = sf.stride * 2 / 3
+						};
+						stack.push_back(s);
+					}
+
+				}
+
+				if (i == sf.n - 1)
+				{
+					float d = Random::nextFloat(-90.f, 90.f);
+
+					glm::vec3 axis = glm::normalize(glm::vec3(Random::nextFloat(), 0, Random::nextFloat()));
+
+					for (int i{}; i < 2; i++)
+					{
+						StackFrame s = {
+							.parent = sf.parent,
+							.local = sf.local * glm::rotate(glm::mat4(1), glm::radians(d), axis),
+							.levels = sf.levels - 1,
+							.n = sf.n / 2,
+							.scale = sf.scale * scaleFactor,
+							.deltaX = sf.deltaX / 2,
+							.deltaZ = -sf.deltaZ / 2,
+							.stride = sf.stride * 2 / 3
+						};
+						stack.push_back(s);
+					}
+
+					//generateBranch(parent, local * glm::rotate(glm::mat4(1), glm::radians(d), axis), (levels - 1) / 2, n / 2, scale * scaleFactor, deltaX / 2, deltaZ / 2, stride * 2 / 3, noiseScale);
+				}
+			}
+		}
+
+		std::cout << "layers recorded: " << layers.size() << "\n";
+
+
+		return parent;
 	}
 
+	Mesh getMesh()
+	{
+		Mesh m{};
+		m.m_data = m_data;
+		m.m_indices = m_indices;
+
+		return m;
+	}
 };
