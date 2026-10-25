@@ -13,8 +13,8 @@ private:
 	unsigned int m_height{};
 	float m_time{};
 	std::string m_title{};
-	
-	GLFWwindow* m_window{nullptr};
+
+	GLFWwindow* m_window{ nullptr };
 
 	std::function<void(int, int, int, int)> m_onKey{};
 	std::function<void(int, int)> m_onReshape{};
@@ -24,7 +24,7 @@ public:
 	Window() = default;
 
 	Window(unsigned int width, unsigned int height)
-		: m_width{width}, m_height{height}
+		: m_width{ width }, m_height{ height }
 	{
 		glfwWindowHint(GLFW_SAMPLES, 8);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -38,7 +38,7 @@ public:
 			throw std::runtime_error("glfw failed to create window!\n");
 		}
 
-		
+
 		glEnable(GL_MULTISAMPLE);
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetKeyCallback(m_window, glfwKeyCallback);
@@ -48,7 +48,7 @@ public:
 		glfwSwapInterval(0);
 		m_time = static_cast<float>(glfwGetTime());
 	}
-	
+
 	~Window()
 	{
 		glfwTerminate();
@@ -70,11 +70,11 @@ public:
 
 	static void glfwKeyCallback(GLFWwindow* glfwWindow, int key, int scancode, int action, int mods)
 	{
-		Window*  window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+		Window* window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
 		if (!window) return;
 
 		window->m_onKey(key, scancode, action, mods);
-		
+
 	}
 
 	static void glfwErrorCallback(int error, const char* description)
@@ -93,7 +93,7 @@ public:
 		window->m_onReshape(width, height);
 	}
 
-	void setReshapeCallback(std::function<void(int,int)> func)
+	void setReshapeCallback(std::function<void(int, int)> func)
 	{
 		m_onReshape = func;
 	}

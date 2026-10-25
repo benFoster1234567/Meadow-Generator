@@ -161,7 +161,7 @@ public:
 	{
 		static float f = 0.f;
 		f += 0.01f;
-		
+
 		for (auto& component : m_components)
 		{
 			std::vector<VertexData> updatedVerts = component.mesh.m_data;
@@ -169,7 +169,7 @@ public:
 
 			for (auto& v : updatedVerts)
 			{
-				float offset = m_noise.compute(glm::vec4{ v.point.x, v.point.y, v.point.z, f}) / 10;
+				float offset = m_noise.compute(glm::vec4{ v.point.x, v.point.y, v.point.z, f }) / 10;
 				float yNorm = glm::normalize(v.point).y;
 				v.point.x += offset * yNorm;
 				v.point.z += offset * yNorm;
@@ -199,6 +199,21 @@ public:
 	{
 		m_instanceTransforms.push_back(localTransform);
 		m_instancesChanged = true;
+	}
+
+	void arrangePlants(int rows, int cols, float spacing)
+	{
+		for (int i = 0; i < rows; ++i)
+		{
+			for (int j = 0; j < cols; ++j)
+			{
+				const float x = spacing * j;
+				const float z = spacing * i;
+
+				glm::mat4 t = glm::translate(glm::mat4(1), glm::vec3(x, 0, z));
+				addInstanceTransform(t);
+			}
+		}
 	}
 
 	void makeFractal(unsigned int density, unsigned int levels, float radius, float randomize = 0.3f, float rotFactor = 1.0f)

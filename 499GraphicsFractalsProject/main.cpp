@@ -15,6 +15,7 @@
 
 #include <thread>
 #include "TreeGenerator.h"
+#include "TreeController.h"
 
 const char* v_shader = R"(
 #version 430 core
@@ -51,8 +52,10 @@ void main()
 
 	out_Position = worldPosition;
 
+	//out_Normal = in_Normal;
 	out_Normal = mat3(transpose(inverse(worldModel))) * in_Normal;
-	out_TexCoord0 = vec2(texture * vec3(in_TexCoord0, 1.0));
+	//out_TexCoord0 = vec2(texture * vec3(in_TexCoord0, 1.0));
+	out_TexCoord0 = in_TexCoord0;
 	gl_Position = projection * view * vec4(worldPosition, 1.0);
 
 }
@@ -130,15 +133,23 @@ void main()
 	float Ks = Kd > 0 ? pow(max(dot(N, H), 0.0), material.shininess) : 0.0;
 	
 	vec3 texColor = texture(diffuseMap, in_TexCoord0).rgb;
-	vec3 c = blendSoftLight(in_Color, texColor);
+	vec3 c = in_Color.rgb;
+	
+	if (length(c) ==0)
+	{
+		c = texColor;
+	}
+
+	
 
 	vec3 ambient = material.ambient * light.ambient * c;
 	vec3 specular = Ks * light.specular * material.specular * vec3(texture(specularMap, in_TexCoord0));
-	vec3 diffuse = light.diffuse * material.diffuse * in_Color * Kd *2 ;
+	vec3 diffuse = light.diffuse * material.diffuse * c * Kd *2 ;
 
 	out_Color = vec4((ambient + diffuse + specular), 1.0);
+	//out_Color = vec4((ambient + diffuse), 1.0);
 	//out_Color = gl_FrontFacing? vec4(1,1,1,1) : vec4(1,0,0,1);
-
+	//out_Color = vec4(fract(in_TexCoord0.y), 0,0,1);
 }
 )";
 
@@ -157,9 +168,11 @@ Mesh testTree;
 
 float cameraSpeed{ 0.f };
 
-
 InstancedMesh meshy{};
 
+InstancedMesh leafMesh{ Mesh{Plane{}, 0.5f}, 0 };
+
+std::unique_ptr<TreeManager> trees{ nullptr };
 bool loading = false;
 
 static void initialize()
@@ -201,24 +214,33 @@ static void initialize()
 	leaves.specularMap = loadTexture("leafSpec.png");
 
 	glViewport(0, 0, 1000, 700);
-	setMat4("projection", glm::perspective(glm::radians(100.0f), (GLfloat)1000 / 700, 1.0f, 200.0f), program);
+	setMat4("projection", glm::perspective(glm::radians(60.0f), (GLfloat)1000 / 700, 1.0f, 200.0f), program);
 
 	TreeGenerator t{ 4,16 };
 
-	float deltaX = 30.5f;
-	float stride = 2.0f;
+	float deltaX = 10.5f;
+	float stride = 1.5f;
+	leafMesh.shaderProgram = program;
+	t.generateExampleTree(glm::mat4(1), 6, 10, { 2,1,2 }, deltaX, 10.5f, stride, 5.0f, 30);
+	leafMesh.changeInstances(t.getLeafInstances());
 
-	t.generateBranch(-1, glm::mat4(1), 5, 10, { 2,1,2 }, deltaX, 10.5f, stride, 5.0f);
 	testTree = t.getMesh();
-	meshy.mesh = testTree;
+	meshy.m_mesh = testTree;
 	meshy.shaderProgram = program;
 
 	meshy.addInstance(glm::translate(glm::mat4{ 1 }, glm::vec3{ 0,-4,0 }) * glm::scale(glm::mat4(1), glm::vec3(1)));
 	//meshy.addInstance(glm::translate(glm::mat4{ 1 }, glm::vec3{ 0,-4,0 }) * glm::rotate(glm::mat4(1), -0.4f, glm::vec3(1, 0, 0)) * glm::scale(glm::mat4(1), glm::vec3(1)));
 
+	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, program);
+
+	trees->setUpTree(6);
+	trees->initialize();
+	leafMesh.initialize();
 	meshy.initialize();
 
 }
+
+
 
 std::atomic<bool> isInitialized{ false };
 
@@ -256,9 +278,10 @@ static void generatePlants()
 {
 	auto now = std::chrono::steady_clock::now();
 
+	//plant.makeFractal(7, 6, 70, 3.f);
+	//flower.makeFractal(5, 6, 80, 5, .5);
 
-	plant.makeFractal(8, 6, 70, 3.f);
-	flower.makeFractal(5, 6, 80, 5, .5);
+	plant.arrangePlants(10, 10, 1);
 
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
@@ -270,15 +293,28 @@ static void generatePlants()
 	isInitialized.store(true);
 }
 
+void changeTree(int llevels)
+{
+	TreeGenerator t{ 4,16 };
+	float deltaX = 30.5f;
+	float stride = 1.5f;
+	t.generateExampleTree(glm::mat4(1), llevels, 10, { 2,1,2 }, deltaX, 10.5f, stride, 5.0f, 30);
+	meshy.changeMesh(t.getMesh());
+	leafMesh.changeInstances(t.getLeafInstances());
+}
+
+int levels = 5;
+
 static void display(Window& window)
 {
 	static float angle = 0.f;
-	angle += cameraSpeed * window.deltaTime();
+	float deltaTime = window.deltaTime();
+	angle += cameraSpeed * deltaTime;
 
 	glUseProgram(program);
 	//plant.wigglePlants();
 	//flower.wigglePlants();
-	glm::vec4 eye = glm::rotate(glm::mat4{ 1 }, glm::radians(angle), { 0,1,0 }) * glm::vec4(0.0f, 20.0f, 60.0f, 1.0f);
+	glm::vec4 eye = glm::rotate(glm::mat4{ 1 }, glm::radians(angle), { 0,1,0 }) * glm::vec4(0.0f, 40.0f, 60.0f, 1.0f);
 	setMat4("view", glm::lookAt(
 		glm::vec3(eye),
 		glm::vec3(0.0f, 0.0f, 0.0f),
@@ -288,15 +324,21 @@ static void display(Window& window)
 
 	setMaterial(ground, program);
 
-	setMat3("texture", glm::mat3(glm::scale(glm::mat4(1.0f), glm::vec3(12.0f))), program);
+	//setMat3("texture", glm::mat3(glm::scale(glm::mat4(1.0f), glm::vec3(12.0f))), program);
 
-	//groundPlane.draw();
+	groundPlane.draw();
 	//flower.animateUpdate();
+	flower.wigglePlants();
+	plant.wigglePlants();
 	plant.draw();
 	flower.draw();
+	setMaterial(bark, program);
+	setMat3("texture", glm::mat3(10), program);
+	//meshy.draw();
+	//leafMesh.draw();
 
-	meshy.draw();
-
+	trees->draw();
+	//trees->tick(deltaTime);
 }
 
 int main(int argc, char** argv)
@@ -320,8 +362,13 @@ int main(int argc, char** argv)
 	ImGuiUi ui;
 	ui.setup(window);
 
+	int leafStride = 0;
+
 	auto* text = static_cast<Text*>(ui.addElement(std::make_unique<Text>("")));
 	auto* slider = ui.addElement(std::make_unique<SliderFloat>(&cameraSpeed, "Camera Orbit Speed", 0.f, 20.f));
+	auto* sliderLevels = ui.addElement(std::make_unique<SliderInt>(&levels, "Level", 0, 15));
+	auto* sliderLeafStride = ui.addElement(std::make_unique<SliderInt>(&leafStride, "Leaf Stride", 0, 10));
+	sliderLevels->setVisibility(false);
 	slider->setVisibility(false);
 	text->setVisibility(true);
 
@@ -359,7 +406,7 @@ int main(int argc, char** argv)
 	window.setReshapeCallback([](int w, int h)
 		{
 			glViewport(0, 0, w, h);
-			setMat4("projection", glm::perspective(glm::radians(100.0f), (GLfloat)w / h, 1.0f, 200.0f), program);
+			setMat4("projection", glm::perspective(glm::radians(60.0f), (GLfloat)w / h, 1.0f, 200.0f), program);
 		});
 
 	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
@@ -370,8 +417,13 @@ int main(int argc, char** argv)
 
 	setupScene();
 
+
+
 	while (!window.shouldClose())
 	{
+		int levelsTemp = levels;
+		int leafStrideTemp = leafStride;
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		if (!isInitialized.load())
@@ -387,6 +439,7 @@ int main(int argc, char** argv)
 				std::cout << "joined\n";
 				text->setVisibility(false);
 				slider->setVisibility(true);
+				sliderLevels->setVisibility(true);
 				plant.initialize();
 				flower.initialize();
 			}
@@ -398,6 +451,10 @@ int main(int argc, char** argv)
 		ui.renderFrame(window);
 		window.pollEvents();
 		window.swapBuffers();
+
+
+		if (levels != levelsTemp) trees->changeLevels(levels);
+		if (leafStride != leafStrideTemp) trees->changeLeafStride(leafStride);
 	}
 	if (setupThread.joinable())
 	{

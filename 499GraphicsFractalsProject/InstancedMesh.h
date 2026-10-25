@@ -3,6 +3,9 @@
 #include "Mesh.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <vector>
+#include <ranges>
+
 
 struct InstanceData
 {
@@ -51,24 +54,24 @@ private:
 
 public:
 
-	Mesh mesh{};
+	Mesh m_mesh{};
 	GLuint shaderProgram{};
 	InstancedMesh() = default;
 
 	explicit InstancedMesh(const Mesh& mesh, GLuint shaderProgram = 0)
-		: shaderProgram(shaderProgram), mesh(mesh) {
+		: shaderProgram(shaderProgram), m_mesh(mesh) {
 	}
 
 	explicit InstancedMesh(Mesh&& mesh, GLuint shaderProgram = 0)
-		: shaderProgram(shaderProgram), mesh(std::move(mesh)) {
+		: shaderProgram(shaderProgram), m_mesh(std::move(mesh)) {
 	}
 
 	InstancedMesh(const Mesh& mesh, std::vector<glm::mat4> instances, GLuint shaderProgram = 0)
-		: shaderProgram(shaderProgram), mesh(mesh), instanceData(std::move(instances)) {
+		: shaderProgram(shaderProgram), m_mesh(mesh), instanceData(std::move(instances)) {
 	}
 
 	InstancedMesh(const Mesh& mesh, const std::vector<InstanceData>& instances, GLuint shaderProgram = 0)
-		: shaderProgram(shaderProgram), mesh(mesh)
+		: shaderProgram(shaderProgram), m_mesh(mesh)
 	{
 		instanceData.reserve(instances.size());
 		for (const auto& inst : instances)
@@ -86,7 +89,7 @@ public:
 		m_vbo(std::exchange(other.m_vbo, 0)),
 		m_ebo(std::exchange(other.m_ebo, 0)),
 		m_ibo(std::exchange(other.m_ibo, 0)),
-		mesh(std::move(other.mesh)),
+		m_mesh(std::move(other.m_mesh)),
 		instanceData(std::move(other.instanceData)) {
 	}
 
@@ -100,7 +103,7 @@ public:
 			m_vbo = std::exchange(other.m_vbo, 0);
 			m_ebo = std::exchange(other.m_ebo, 0);
 			m_ibo = std::exchange(other.m_ibo, 0);
-			mesh = std::move(other.mesh);
+			m_mesh = std::move(other.m_mesh);
 			instanceData = std::move(other.instanceData);
 		}
 		return *this;
@@ -116,6 +119,25 @@ public:
 		instanceData.push_back(data);
 	}
 
+	void changeInstancesTemp(const std::vector<glm::mat4>& newInstances)
+	{
+		if (m_vao == 0)
+		{
+			return;
+		}
+
+		glBindVertexArray(m_vao);
+		glBindBuffer(GL_ARRAY_BUFFER, m_ibo);
+		glBufferData(GL_ARRAY_BUFFER, newInstances.size() * sizeof(glm::mat4), newInstances.data(), GL_DYNAMIC_DRAW);
+		glBindVertexArray(0);
+	}
+
+	void changeInstances(const std::vector<glm::mat4>& newInstances)
+	{
+		instanceData = newInstances;
+		changeInstancesTemp(instanceData);
+	}
+
 	void initialize()
 	{
 		glGenVertexArrays(1, &m_vao);
@@ -125,7 +147,8 @@ public:
 		glGenBuffers(1, &m_ibo);
 
 		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-		glBufferData(GL_ARRAY_BUFFER, mesh.m_data.size() * sizeof(VertexData), mesh.m_data.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, m_mesh.m_data.size() * sizeof(VertexData), m_mesh.m_data.data(), GL_DYNAMIC_DRAW
+		);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)offsetof(VertexData, point));
 		glEnableVertexAttribArray(0);
@@ -137,7 +160,7 @@ public:
 		glEnableVertexAttribArray(2);
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.m_indices.size() * sizeof(unsigned int), mesh.m_indices.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_mesh.m_indices.size() * sizeof(unsigned int), m_mesh.m_indices.data(), GL_STATIC_DRAW);
 
 		glBindBuffer(GL_ARRAY_BUFFER, m_ibo);
 		glBufferData(GL_ARRAY_BUFFER, instanceData.size() * sizeof(glm::mat4), instanceData.data(), GL_DYNAMIC_DRAW);
@@ -157,10 +180,38 @@ public:
 		glBindVertexArray(0);
 	}
 
+	void changeInstanceStride(size_t stride)
+	{
+		stride += 1;
+
+		std::vector<glm::mat4> newInst{};
+
+		for (int i{}; i < instanceData.size(); ++i)
+		{
+			if (i % stride == 0)
+			{
+				newInst.push_back(instanceData[i]);
+			}
+		}
+
+		changeInstancesTemp(newInst);
+	}
+
+	void changeMesh(Mesh mesh)
+	{
+		m_mesh = std::move(mesh);
+		glBindVertexArray(m_vao);
+		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+		glBufferData(GL_ARRAY_BUFFER, m_mesh.m_data.size() * sizeof(VertexData), m_mesh.m_data.data(), GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_mesh.m_indices.size() * sizeof(unsigned int), m_mesh.m_indices.data(), GL_DYNAMIC_DRAW);
+		glBindVertexArray(0);
+	}
+
 	void draw()
 	{
 		glBindVertexArray(m_vao);
-		glDrawElementsInstanced(GL_TRIANGLES, mesh.m_indices.size(), GL_UNSIGNED_INT, (void*)0, instanceData.size());
+		glDrawElementsInstanced(GL_TRIANGLES, m_mesh.m_indices.size(), GL_UNSIGNED_INT, (void*)0, instanceData.size());
 	}
 
 

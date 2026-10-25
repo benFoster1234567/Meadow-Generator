@@ -23,11 +23,11 @@ struct ImGuiElementBase
 
 struct Button : public ImGuiElementBase
 {
-	std::string m_label{""};
+	std::string m_label{ "" };
 	std::function<void()> m_func{};
 
 	Button(std::string_view label, std::function<void()> func)
-		: m_label(label), m_func(func) 
+		: m_label(label), m_func(func)
 	{
 	}
 
@@ -45,20 +45,20 @@ struct Button : public ImGuiElementBase
 class SliderInt : public ImGuiElementBase
 {
 	std::string m_label{ "int slider" };
-	int m_min{0};
-	int m_max{1};
+	int m_min{ 0 };
+	int m_max{ 1 };
 	int* m_value{ nullptr };
 
 public:
 	SliderInt(int* value, std::string_view label, int min, int max)
-		: m_label(label), m_min(min), m_max(max), m_value{ value } 
+		: m_label(label), m_min(min), m_max(max), m_value{ value }
 	{
 	}
 
 	void render() override
 	{
 		int i{};
-		ImGui::SliderInt(m_label.c_str(), !m_value? &i : m_value, m_min, m_max);
+		ImGui::SliderInt(m_label.c_str(), !m_value ? &i : m_value, m_min, m_max);
 	}
 
 };
@@ -79,7 +79,7 @@ public:
 	void render() override
 	{
 		float i{};
-		ImGui::SliderFloat(m_label.c_str(), !m_value ? &i : m_value, m_min, m_max, ".3f");
+		ImGui::SliderFloat(m_label.c_str(), !m_value ? &i : m_value, m_min, m_max, "%.3f");
 	}
 
 };
@@ -102,7 +102,7 @@ private:
 	bool show_demo_window{ false };
 	bool show_another_window{ false };
 	std::vector<std::unique_ptr<ImGuiElementBase>> elements{};
-	
+
 	std::string m_windowTitle{ "imgui window" };
 
 	friend class ImGuiUiBuilder;
