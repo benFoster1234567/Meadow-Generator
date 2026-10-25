@@ -45,6 +45,49 @@ public:
 private:
 	bool   m_modelLoaded{ false };
 
+	void unitize()
+	{
+		if (m_data.empty())
+		{
+			return;
+		}
+
+		using namespace glm;
+
+		vec3 lowerBounds{ std::numeric_limits<float>().max() };
+		vec3 upperBounds{ std::numeric_limits<float>().min() };
+
+		for (const auto& value : m_data)
+		{
+			if (value.point.x < lowerBounds.x) lowerBounds.x = value.point.x;
+			if (value.point.y < lowerBounds.y) lowerBounds.y = value.point.y;
+			if (value.point.z < lowerBounds.z) lowerBounds.z = value.point.z;
+
+			if (value.point.x > upperBounds.x) upperBounds.x = value.point.x;
+			if (value.point.y > upperBounds.y) upperBounds.y = value.point.y;
+			if (value.point.z > upperBounds.z) upperBounds.z = value.point.z;
+		}
+
+		vec3 bounds = upperBounds - lowerBounds;
+
+		float scaleFactor = 1.0f;
+
+		if (bounds.x >= bounds.y && bounds.x >= bounds.z) scaleFactor = bounds.x;
+		else if (bounds.y >= bounds.x && bounds.y >= bounds.z) scaleFactor = bounds.y;
+		else if (bounds.z >= bounds.y && bounds.z >= bounds.x) scaleFactor = bounds.z;
+
+		if (scaleFactor == 0) scaleFactor = 0.0001f;
+
+		const mat4 unitizeMatrix = scale(mat4(1), vec3(1 / scaleFactor));
+
+
+		for (auto& value : m_data)
+		{
+			value.point = unitizeMatrix * vec4(value.point, 1);
+		}
+
+	}
+
 	bool loadObjModel(std::string_view path)
 	{
 		if (m_modelLoaded)
@@ -151,6 +194,7 @@ private:
 			20, 21, 22, 22, 23, 20
 		};
 
+
 		m_modelLoaded = true;
 		return true;
 	}
@@ -177,6 +221,7 @@ public:
 	explicit Mesh(std::string_view path)
 	{
 		loadObjModel(path);
+		unitize();
 	}
 
 	Mesh(Cube, float side)
