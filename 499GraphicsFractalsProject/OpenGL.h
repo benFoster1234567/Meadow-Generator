@@ -13,16 +13,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-typedef struct 
-{
-	glm::vec3 ambient;
-	glm::vec3 diffuse;
-	glm::vec3 specular;
-	GLfloat shininess;
-	GLuint specularMap;
-	GLuint diffuseMap;
-} 
-Material;
+#include "Material.h"
 
 void setInt(const char* name, GLint value, GLuint& program) {
 	glUniform1i(glGetUniformLocation(program, name), value);
@@ -112,7 +103,7 @@ GLuint loadTexture(const char* fileName)
 	ilBindImage(imageID);
 	ilEnable(IL_ORIGIN_SET);
 	ilOriginFunc(IL_ORIGIN_LOWER_LEFT);
-	if (!ilLoadImage( (ILstring) fileName))
+	if (!ilLoadImage((ILstring)fileName))
 	{
 		std::cout << "Couldn't load the following texture file: " << fileName << "\n";
 		ilDeleteImages(1, &imageID);

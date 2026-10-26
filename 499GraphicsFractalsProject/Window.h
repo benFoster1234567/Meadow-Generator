@@ -7,8 +7,6 @@
 class Window
 {
 private:
-
-
 	unsigned int m_width{};
 	unsigned int m_height{};
 	float m_time{};
@@ -20,6 +18,7 @@ private:
 	std::function<void(int, int)> m_onReshape{};
 
 	friend class ImGuiUi;
+
 public:
 	Window() = default;
 

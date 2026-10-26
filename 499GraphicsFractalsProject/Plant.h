@@ -12,7 +12,7 @@
 #include "OpenGL.h"
 #include <queue>
 #include "Noise.h"
-
+#include "Shader.h"
 
 //plants are made up of components, which have their own instance colors.
 struct ModelComponent
@@ -23,7 +23,7 @@ struct ModelComponent
 	GLuint instanceColorVbo{ 0 };
 	GLuint instanceVbo{ 0 };
 
-	GLuint program{ 0 };
+	std::weak_ptr<Shader> m_shader;
 
 	Mesh mesh;
 
@@ -33,8 +33,8 @@ struct ModelComponent
 
 	std::vector<glm::vec3> colors{};
 
-	ModelComponent(Mesh m, glm::mat4 t, Material material, GLuint p)
-		: mesh(std::move(m)), localTransform(t), material(material), program(p)
+	ModelComponent(Mesh m, glm::mat4 t, Material material, std::weak_ptr<Shader> shader)
+		: mesh(std::move(m)), localTransform(t), material(material), m_shader(shader)
 	{
 	}
 
@@ -42,10 +42,14 @@ struct ModelComponent
 
 class Plant
 {
+	static constexpr size_t NOISE_SIZE = 64;
+
 	bool m_initialized{ false };
 	bool m_instancesChanged{ false };
+	float m_time{};
 
 	Noise4D m_noise{};
+	GLuint m_noiseTexId = 0;
 
 	std::vector<ModelComponent> m_components{};
 	std::vector<glm::mat4> m_instanceTransforms{};
@@ -78,7 +82,48 @@ class Plant
 		m_instancesChanged = false;
 	}
 
+	std::vector<float> getNoiseData(size_t size, float frequency, float time)
+	{
+		std::vector<float> data(size * size);
 
+		for (int x{}; x < size; ++x)
+			for (int y{}; y < size; ++y)
+			{
+				static constexpr float placeHolder = 1.0f;
+				data[y * size + x] = m_noise.compute(glm::vec4{ x,placeHolder,y,time });
+			}
+
+		return data;
+	}
+
+
+	GLuint generateNoiseTexture(size_t size, float frequency, float time)
+	{
+		auto data = getNoiseData(size, frequency, time);
+		GLuint tex = 0;
+		glGenTextures(1, &tex);
+		glBindTexture(GL_TEXTURE_2D, tex);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // one row of 
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, static_cast<GLsizei>(size), static_cast<GLsizei>(size), 0, GL_RED, GL_FLOAT, (GLfloat*)&data[0]);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		return tex;
+	}
+
+	void updateNoiseTexture(size_t size, float frequency, float time)
+	{
+		auto data = getNoiseData(size, frequency, time);
+		glBindTexture(GL_TEXTURE_2D, m_noiseTexId);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_RED, GL_FLOAT, (GLfloat*)&data[0]);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
 
 	std::vector<glm::mat4> packData(const std::vector<glm::mat4>& transforms, const std::vector<glm::vec3>& colors)
 	{
@@ -146,15 +191,38 @@ public:
 		destroy();
 	}
 
+	void initializeNoise()
+	{
+		m_noiseTexId = generateNoiseTexture(NOISE_SIZE, 0.05f, m_time);
+	}
+
+	void bindNoise(const char* name, size_t slot, std::weak_ptr<Shader> shader)
+	{
+		if (auto s = shader.lock())
+		{
+			s->bindTexture(name, slot, m_noiseTexId);
+		}
+	}
+
 	void setTransform(glm::mat4 transform)
 	{
 		m_transform = transform;
 	}
 
-	size_t addComponent(Mesh mesh, glm::mat4 transform, Material material, GLuint program)
+	size_t addComponent(Mesh mesh, glm::mat4 transform, Material material, std::weak_ptr<Shader> shader)
 	{
-		m_components.emplace_back(mesh, transform, material, program);
+		m_components.emplace_back(mesh, transform, material, shader);
 		return m_components.size() - 1;
+	}
+
+	void tick(float deltaTime)
+	{
+		m_time += deltaTime;
+	}
+
+	void updateNoiseTexture()
+	{
+		updateNoiseTexture(NOISE_SIZE, 0.05, m_time);
 	}
 
 	void wigglePlants()
@@ -329,109 +397,26 @@ public:
 
 	void draw()
 	{
+
 		if (m_instancesChanged)
 		{
 			refreshInstances();
 		}
 		for (auto& component : m_components)
 		{
-			glUseProgram(component.program);
-			setMat4("model", component.localTransform * m_transform, component.program);
-			setMaterial(component.material, component.program);
-			glBindVertexArray(component.vao);
-			glDrawElementsInstanced(GL_TRIANGLES, component.mesh.m_indices.size(), GL_UNSIGNED_INT, (void*)0, m_instanceTransforms.size());
-		}
-	}
-
-};
-
-#endif
-
-
-#ifdef NEW_PLANT
-class Plants
-{
-
-	// needs shader programs for the different components
-
-	InstancedMesh flowerStem{ Mesh{ "stem.obj" } };
-	InstancedMesh flowerPetals{ Mesh{"petals.obj"} };
-	InstancedMesh flowerLeaf1{ Mesh{"leaf1.obj"} };
-	InstancedMesh flowerLeaf1{ Mesh{"leaf2.obj"} };
-	InstancedMesh flowerLeaf1{ Mesh{"leaf3.obj"} };
-
-
-
-public:
-
-	void arrangePlants()
-	{
-
-	}
-
-	void initializePlants()
-	{
-
-	}
-
-	void makeFractal(unsigned int density, unsigned int levels, float radius, float randomize = 0.3f, float rotFactor = 1.0f)
-	{
-		glm::mat4 t{ 1.f };
-		size_t count = 0;
-		struct StackFrame
-		{
-			glm::mat4 t;
-			unsigned int levels;
-			float radius;
-		};
-
-		std::vector<StackFrame> stack{};
-		stack.reserve(10000000);
-		stack.push_back(StackFrame{ .t = t,.levels = levels, .radius = radius });
-
-		float interval = 2 * glm::pi<float>() / density;
-		float r = 2 * glm::pi<float>() / Random::nextFloat(0, randomize);
-
-		std::vector<glm::vec2> angledUnitVectors{};
-		angledUnitVectors.reserve(density);
-
-		for (int i{ 0 }; i < density; ++i)
-		{
-			float theta = i * interval + r;
-			angledUnitVectors.emplace_back(glm::cos(theta), glm::sin(theta));
-		}
-
-		while (!stack.empty())
-		{
-			StackFrame stackFrame = stack.back();
-			stack.pop_back();
-
-			if (stackFrame.levels > 0)
+			if (auto lock = component.m_shader.lock())
 			{
-				addInstanceTransform(stackFrame.t);
-				count++;
-				for (int i = 0; i < density; ++i)
-				{
-					float theta = i * interval + r;
 
-					float x = stackFrame.radius * angledUnitVectors[i].x + Random::nextFloat(-randomize, randomize); //replace with something way faster
-					float z = stackFrame.radius * angledUnitVectors[i].y + Random::nextFloat(-randomize, randomize);
-
-					glm::vec3 p = { x, 0, z };
-
-					float phi = rotFactor * theta;
-
-					glm::mat4 transform = translate(glm::mat4{ 1.f }, glm::vec3(x, 0, z)) * glm::rotate(glm::mat4(1), phi, glm::vec3(0, 1, 0));
-
-					stack.emplace_back(StackFrame{ .t = transform * stackFrame.t, .levels = stackFrame.levels - 1, .radius = stackFrame.radius * 0.333f });
-				}
+				lock->useShader();
+				lock->setMat4("model", component.localTransform * m_transform);
+				lock->setMaterial(component.material, false);
+				lock->bindTexture("noiseTexture", 2, m_noiseTexId);
+				glBindVertexArray(component.vao);
+				glDrawElementsInstanced(GL_TRIANGLES, component.mesh.m_indices.size(), GL_UNSIGNED_INT, (void*)0, m_instanceTransforms.size());
 			}
 		}
-
-		std::cout << this << " - Rendered instances: " << count << "\n";
-
 	}
 
-
 };
+
 #endif

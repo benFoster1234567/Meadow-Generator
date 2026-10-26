@@ -55,23 +55,22 @@ private:
 public:
 
 	Mesh m_mesh{};
-	GLuint shaderProgram{};
 	InstancedMesh() = default;
 
-	explicit InstancedMesh(const Mesh& mesh, GLuint shaderProgram = 0)
-		: shaderProgram(shaderProgram), m_mesh(mesh) {
+	explicit InstancedMesh(const Mesh& mesh)
+		: m_mesh(mesh) {
 	}
 
-	explicit InstancedMesh(Mesh&& mesh, GLuint shaderProgram = 0)
-		: shaderProgram(shaderProgram), m_mesh(std::move(mesh)) {
+	explicit InstancedMesh(Mesh&& mesh)
+		: m_mesh(std::move(mesh)) {
 	}
 
-	InstancedMesh(const Mesh& mesh, std::vector<glm::mat4> instances, GLuint shaderProgram = 0)
-		: shaderProgram(shaderProgram), m_mesh(mesh), instanceData(std::move(instances)) {
+	InstancedMesh(const Mesh& mesh, std::vector<glm::mat4> instances)
+		: m_mesh(mesh), instanceData(std::move(instances)) {
 	}
 
-	InstancedMesh(const Mesh& mesh, const std::vector<InstanceData>& instances, GLuint shaderProgram = 0)
-		: shaderProgram(shaderProgram), m_mesh(mesh)
+	InstancedMesh(const Mesh& mesh, const std::vector<InstanceData>& instances)
+		: m_mesh(mesh)
 	{
 		instanceData.reserve(instances.size());
 		for (const auto& inst : instances)
@@ -84,7 +83,7 @@ public:
 	InstancedMesh& operator=(const InstancedMesh&) = delete;
 
 	InstancedMesh(InstancedMesh&& other) noexcept
-		: shaderProgram(std::exchange(other.shaderProgram, 0)),
+		:
 		m_vao(std::exchange(other.m_vao, 0)),
 		m_vbo(std::exchange(other.m_vbo, 0)),
 		m_ebo(std::exchange(other.m_ebo, 0)),
@@ -98,7 +97,6 @@ public:
 		if (this != &other)
 		{
 			release();
-			shaderProgram = std::exchange(other.shaderProgram, 0);
 			m_vao = std::exchange(other.m_vao, 0);
 			m_vbo = std::exchange(other.m_vbo, 0);
 			m_ebo = std::exchange(other.m_ebo, 0);

@@ -145,15 +145,21 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Plane.cpp" />
+    <ClCompile Include="Shader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vcpkg.json" />
+    <None Include="plant.frag" />
+    <None Include="plant.vert" />
     <None Include="shader.frag" />
     <None Include="shader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="Fractals.h" />
+    <ClInclude Include="Light.h" />
     <ClInclude Include="InstancedMesh.h" />
+    <ClInclude Include="Material.h" />
     <ClInclude Include="Noise.h" />
     <ClInclude Include="Plane.h" />
     <ClInclude Include="Plant.h" />
@@ -161,6 +167,7 @@
     <ClInclude Include="OpenGL.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="ShaderManager.h" />
     <ClInclude Include="SparseSet.h" />
     <ClInclude Include="TreeController.h" />
     <ClInclude Include="TreeGenerator.h" />

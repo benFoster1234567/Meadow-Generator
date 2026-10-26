@@ -21,6 +21,9 @@
     <ClCompile Include="Plane.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vcpkg.json" />
@@ -28,6 +31,12 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="shader.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="plant.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="plant.frag">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
@@ -72,6 +81,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TreeController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Light.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

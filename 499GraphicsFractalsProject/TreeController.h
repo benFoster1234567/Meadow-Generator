@@ -14,7 +14,9 @@ class TreeManager
 	Material leafMat;
 
 	glm::mat4 worldTransform{ 1.0f };
-	GLuint shader;
+	glm::mat4 localTransform{ 1.0f };
+	std::weak_ptr<Shader> m_treeShader;
+	std::weak_ptr<Shader> m_leafShader;
 
 	Noise4D m_noise{};
 	float time{ 0.f };
@@ -24,19 +26,22 @@ public:
 		const Mesh& leafMesh
 		, const Material& treeMat
 		, const Material& leafMat
-		, const GLuint& s = 0
+		, std::weak_ptr<Shader> treeShader
+		, std::weak_ptr<Shader> leafShader
 	)
 		:
-		leaves(leafMesh, s)
+		leaves(leafMesh)
 		, treeMat(treeMat)
 		, leafMat(leafMat)
-		, shader(s)
+		, m_treeShader(treeShader)
+		, m_leafShader(leafShader)
 	{
 	}
 
-	void setShader(const GLuint& s)
+	void setShaders(std::weak_ptr<Shader> treeShader, std::weak_ptr<Shader> leafShader)
 	{
-		shader = s;
+		m_treeShader = treeShader;
+		m_leafShader = leafShader;
 	}
 
 	void setTransform(const glm::mat4& t)
@@ -44,25 +49,33 @@ public:
 		worldTransform = t;
 	}
 
-	void setUpTree(int levels, int n = 10, float deltaX = 30.5f, float stride = 1.5f)
+	void setUpTree(glm::mat4 local, int levels, int n = 10, float deltaX = 30.5f, float stride = 1.5f)
 	{
+		localTransform = local;
 		tree.addInstance(worldTransform);
 		TreeGenerator t{ 4,16 };
-		t.generateExampleTree(glm::mat4(1), levels, 10, { 1,1,1 }, deltaX, 10.5f, stride, 5.0f, 30);
+		t.generateExampleTree(local, levels, 10, { 1,1,1 }, deltaX, 10.5f, stride, 5.0f, 30);
 		tree.changeMesh(t.getMesh());
 		leaves.changeInstances(t.getLeafInstances());
 	}
 
 	void initialize()
 	{
-		glUseProgram(shader);
-		tree.initialize();
-		leaves.initialize();
+		if (auto lock = m_treeShader.lock())
+		{
+			lock->useShader();
+			tree.initialize();
+		}
+
+		if (auto lock = m_leafShader.lock())
+		{
+			leaves.initialize();
+		}
 	}
 
 	void changeLevels(int levels)
 	{
-		setUpTree(levels);
+		setUpTree(localTransform, levels);
 	}
 
 	void changeLeafStride(int stride)
@@ -96,12 +109,19 @@ public:
 
 	void draw()
 	{
-		if (shader == 0) return;
-		setMat4("model", worldTransform, shader);
-		setMaterial(treeMat, shader);
-		tree.draw();
-		setMaterial(leafMat, shader);
-		leaves.draw();
+		if (auto lock = m_treeShader.lock())
+		{
+			lock->setMat4("model", worldTransform);
+			lock->setMaterial(treeMat);
+			tree.draw();
+		}
+
+		if (auto lock = m_leafShader.lock())
+		{
+			lock->setMat4("model", worldTransform);
+			lock->setMaterial(leafMat);
+			leaves.draw();
+		}
 	}
 
 

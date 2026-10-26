@@ -16,161 +16,29 @@
 #include <thread>
 #include "TreeGenerator.h"
 #include "TreeController.h"
-
-const char* v_shader = R"(
-#version 430 core
-
-layout (location = 0) in vec3 in_Position;
-layout (location = 1) in vec3 in_Normal;
-layout (location = 2) in vec2 in_TexCoord0;
-layout (location = 3) in mat4 in_InstanceData;
-
-layout (location = 0) out vec3 out_Position;
-layout (location = 1) out vec3 out_Normal;
-layout (location = 2) out vec2 out_TexCoord0;
-layout (location = 3) out vec3 out_color;
-
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-uniform mat3 texture;
-
-void main() 
-{
-	mat4 m = in_InstanceData;
-
-	out_color = vec3(m[0].w, m[1].w, m[2].w);
-	
-	m[0].w = 0.0;
-	m[1].w = 0.0;
-	m[2].w = 0.0;
-	m[3].w = 1.0;
-
-	mat4 worldModel = m * model;
-
-	vec3 worldPosition = vec3(worldModel * vec4(in_Position, 1.0));
-
-	out_Position = worldPosition;
-
-	//out_Normal = in_Normal;
-	out_Normal = mat3(transpose(inverse(worldModel))) * in_Normal;
-	//out_TexCoord0 = vec2(texture * vec3(in_TexCoord0, 1.0));
-	out_TexCoord0 = in_TexCoord0;
-	gl_Position = projection * view * vec4(worldPosition, 1.0);
-
-}
-)";
-
-const char* f_shader = R"(
-#version 430 core
-
-struct Material 
-{
-	vec3 ambient;
-	vec3 diffuse;
-	vec3 specular;
-	float shininess;
-};
-
-struct Light {
-	vec3 position;
-	vec3 ambient;
-	vec3 diffuse;
-	vec3 specular;
-};
-
-layout (location = 0) in vec3 in_Position;
-layout (location = 1) in vec3 in_Normal;
-layout (location = 2) in vec2 in_TexCoord0;
-layout (location = 3) in vec3 in_Color;
-
-layout (location = 0) out vec4 out_Color;
-
-uniform sampler2D diffuseMap;
-uniform sampler2D specularMap;
-
-uniform vec3 viewPosition;
-uniform Light light;
-uniform Material material;
-
-vec3 overlay(vec3 base, vec3 blend)
-{
-    vec3 multiply = 2.0 * base * blend;
-    vec3 screen   = 1.0 - 2.0 * (1.0 - base) * (1.0 - blend);
-    return mix(multiply, screen, step(0.5, base));
-}
-
-float softLightComponent(float base, float detail) 
-{
-    if (detail <= 0.5) 
-	{
-        return base - (1.0 - 2.0 * detail) * base * (1.0 - base);
-    } 
-	else 
-	{
-        return base + (2.0 * detail - 1.0) * (sqrt(base) - base);
-    }
-}
-
-vec3 blendSoftLight(vec3 baseColor, vec3 detailColor) 
-{
-    return vec3(
-        softLightComponent(baseColor.r, detailColor.r),
-        softLightComponent(baseColor.g, detailColor.g),
-        softLightComponent(baseColor.b, detailColor.b)
-    );
-}
-
-void main() 
-{
-	vec3 N = gl_FrontFacing ? normalize(in_Normal) : -normalize(in_Normal);
-	
-	vec3 L = normalize(light.position);
-	vec3 E = normalize(viewPosition - in_Position);
-	vec3 H = normalize(L + E);
-
-	float Kd = max(dot(L, N), 0.0);
-	float Ks = Kd > 0 ? pow(max(dot(N, H), 0.0), material.shininess) : 0.0;
-	
-	vec3 texColor = texture(diffuseMap, in_TexCoord0).rgb;
-	vec3 c = in_Color.rgb;
-	
-	if (length(c) ==0)
-	{
-		c = texColor;
-	}
-
-	
-
-	vec3 ambient = material.ambient * light.ambient * c;
-	vec3 specular = Ks * light.specular * material.specular * vec3(texture(specularMap, in_TexCoord0));
-	vec3 diffuse = light.diffuse * material.diffuse * c * Kd *2 ;
-
-	out_Color = vec4((ambient + diffuse + specular), 1.0);
-	//out_Color = vec4((ambient + diffuse), 1.0);
-	//out_Color = gl_FrontFacing? vec4(1,1,1,1) : vec4(1,0,0,1);
-	//out_Color = vec4(fract(in_TexCoord0.y), 0,0,1);
-}
-)";
+#include "Camera.h"
+#include "ShaderManager.h"
 
 GLuint program;
 Material ground, bark, leaves;
 
-Mesh plane(Plane{}, 60.f);
+Mesh plane(Plane{}, 10.f);
 
 Mesh meshMesh("bunny.obj");
+
+Camera camera{ 1000,700 };
+ShaderManager shaderManager{};
+
+ShaderManager::ShaderIndex leavesShader, barkShader, plantShader, baseShader;
 
 Plant plant{};
 Plant flower{};
 Plant groundPlane{};
 
-Mesh testTree;
 
 float cameraSpeed{ 0.f };
 
-InstancedMesh meshy{};
-
-InstancedMesh leafMesh{ Mesh{Plane{}, 0.5f}, 0 };
+InstancedMesh leafMesh{ Mesh{Plane{}, 0.5f} };
 
 std::unique_ptr<TreeManager> trees{ nullptr };
 bool loading = false;
@@ -179,18 +47,28 @@ static void initialize()
 {
 	loading = true;
 
-	program = initializeShaders(v_shader, f_shader);
-	glUseProgram(program);
+	baseShader = shaderManager.addShader("shader.vert", "shader.frag");
+	plantShader = shaderManager.addShader("plant.vert", "plant.frag");
+	shaderManager.useShader(baseShader);
+
 	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	setMat3("texture", glm::mat3(1.0f), program);
-	setVec3("light.position", glm::vec3(20.0f, 30.0f, 20.0f), program);
-	setVec3("light.ambient", glm::vec3(0.35f), program);
-	setVec3("light.diffuse", glm::vec3(1.0f), program);
-	setVec3("light.specular", glm::vec3(1.0f), program);
-	setInt("diffuseMap", 0, program);
-	setInt("specularMap", 1, program);
+
+	Light light
+	{
+		.position = glm::vec3(20.0f, 30.0f, 20.0f),
+		.diffuse = glm::vec3(1.0f),
+		.ambient = glm::vec3(0.35f),
+		.specular = glm::vec3(1.0f)
+	};
+
+	shaderManager.all().setLight(light);
+	shaderManager.all().setMat3("texture", glm::mat3(1.0f));
+	shaderManager.all().setInt("diffuseMap", 0);
+	shaderManager.all().setInt("specularMap", 0);
+
+	shaderManager.useShader(baseShader);
 
 	ground.ambient = glm::vec3(1.0f);
 	ground.diffuse = glm::vec3(0.247f, 0.56, 0.043f);
@@ -214,39 +92,28 @@ static void initialize()
 	leaves.specularMap = loadTexture("leafSpec.png");
 
 	glViewport(0, 0, 1000, 700);
-	setMat4("projection", glm::perspective(glm::radians(60.0f), (GLfloat)1000 / 700, 1.0f, 200.0f), program);
 
-	TreeGenerator t{ 4,16 };
+	camera.changeViewDistance(10);
+	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(10.f));
+	camera.onWindowResize(static_cast<float>(1000), static_cast<float>(700));
+	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
+	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(baseShader).value());
 
-	float deltaX = 10.5f;
-	float stride = 1.5f;
-	leafMesh.shaderProgram = program;
-	t.generateExampleTree(glm::mat4(1), 6, 10, { 2,1,2 }, deltaX, 10.5f, stride, 5.0f, 30);
-	leafMesh.changeInstances(t.getLeafInstances());
 
-	testTree = t.getMesh();
-	meshy.m_mesh = testTree;
-	meshy.shaderProgram = program;
-
-	meshy.addInstance(glm::translate(glm::mat4{ 1 }, glm::vec3{ 0,-4,0 }) * glm::scale(glm::mat4(1), glm::vec3(1)));
-	//meshy.addInstance(glm::translate(glm::mat4{ 1 }, glm::vec3{ 0,-4,0 }) * glm::rotate(glm::mat4(1), -0.4f, glm::vec3(1, 0, 0)) * glm::scale(glm::mat4(1), glm::vec3(1)));
-
-	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, program);
-
-	trees->setUpTree(6);
+	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.01f)), 6);
 	trees->initialize();
 	leafMesh.initialize();
-	meshy.initialize();
+
+	plant.initializeNoise();
+	plant.bindNoise("noiseTexture", 2, shaderManager.getShader(plantShader).value());
 
 }
-
-
 
 std::atomic<bool> isInitialized{ false };
 
 static void setupScene()
 {
-	plant.addComponent(Mesh{ "grass.obj" }, glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3(0.5, .3, .5)), ground, program);
+	plant.addComponent(Mesh{ "grass.obj" }, glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3(0.5, .3, .5)), ground, shaderManager.getShader(plantShader).value());
 
 	glm::mat4 flowerTransform = glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.0f), glm::vec3(1.3, 1, 1.3));
 	//0.7098f, 0.8235f, 0.6784f
@@ -254,9 +121,9 @@ static void setupScene()
 	Material flowerMat{ .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{1,.2,.2},.specular = glm::vec3(0.4), .shininess = 1, .diffuseMap = loadTexture("flowerPetal.png") };
 	Material bud{ .ambient = glm::vec3{1.f}, .diffuse = {1, 1, 0} };
 
-	flower.addComponent(Mesh{ "stem.obj" }, flowerTransform, stem, program);
+	flower.addComponent(Mesh{ "stem.obj" }, flowerTransform, stem, shaderManager.getShader(baseShader).value());
 
-	ModelComponent petalComponent(Mesh{ "petals.obj" }, flowerTransform, flowerMat, program);
+	ModelComponent petalComponent(Mesh{ "petals.obj" }, flowerTransform, flowerMat, shaderManager.getShader(baseShader).value());
 	petalComponent.colors.emplace_back(1.f, .5f, 0.f);
 	petalComponent.colors.emplace_back(.6, .6, 1);
 	petalComponent.colors.emplace_back(1, 0.5, 0.5);
@@ -264,24 +131,26 @@ static void setupScene()
 
 	//flower.addComponent(Mesh{ "petals.obj" }, flowerTransform, flowerMat, program);
 	flower.addComponent(petalComponent);
-	flower.addComponent(Mesh{ "bud.obj" }, flowerTransform, bud, program);
-	flower.addComponent(Mesh{ "leaf1.obj" }, flowerTransform, leaves, program);
-	flower.addComponent(Mesh{ "leaf2.obj" }, flowerTransform, leaves, program);
-	flower.addComponent(Mesh{ "leaf3.obj" }, flowerTransform, leaves, program);
+	flower.addComponent(Mesh{ "bud.obj" }, flowerTransform, bud, shaderManager.getShader(baseShader).value());
+	flower.addComponent(Mesh{ "leaf1.obj" }, flowerTransform, leaves, shaderManager.getShader(baseShader).value());
+	flower.addComponent(Mesh{ "leaf2.obj" }, flowerTransform, leaves, shaderManager.getShader(baseShader).value());
+	flower.addComponent(Mesh{ "leaf3.obj" }, flowerTransform, leaves, shaderManager.getShader(baseShader).value());
 
-	groundPlane.addComponent(plane, glm::mat4(1), ground, program);
+	groundPlane.addComponent(plane, glm::mat4(1), ground, shaderManager.getShader(baseShader).value());
 	groundPlane.addInstanceTransform(glm::translate(glm::mat4(1), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3{ 10 }));
 	groundPlane.initialize();
+}
+
+static void setupCamera()
+{
+
 }
 
 static void generatePlants()
 {
 	auto now = std::chrono::steady_clock::now();
 
-	//plant.makeFractal(7, 6, 70, 3.f);
-	//flower.makeFractal(5, 6, 80, 5, .5);
-
-	plant.arrangePlants(10, 10, 1);
+	plant.arrangePlants(10, 10, 0.25);
 
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
@@ -293,15 +162,6 @@ static void generatePlants()
 	isInitialized.store(true);
 }
 
-void changeTree(int llevels)
-{
-	TreeGenerator t{ 4,16 };
-	float deltaX = 30.5f;
-	float stride = 1.5f;
-	t.generateExampleTree(glm::mat4(1), llevels, 10, { 2,1,2 }, deltaX, 10.5f, stride, 5.0f, 30);
-	meshy.changeMesh(t.getMesh());
-	leafMesh.changeInstances(t.getLeafInstances());
-}
 
 int levels = 5;
 
@@ -309,33 +169,33 @@ static void display(Window& window)
 {
 	static float angle = 0.f;
 	float deltaTime = window.deltaTime();
+	plant.tick(deltaTime);
 	angle += cameraSpeed * deltaTime;
 
-	glUseProgram(program);
-	//plant.wigglePlants();
-	//flower.wigglePlants();
-	glm::vec4 eye = glm::rotate(glm::mat4{ 1 }, glm::radians(angle), { 0,1,0 }) * glm::vec4(0.0f, 40.0f, 60.0f, 1.0f);
-	setMat4("view", glm::lookAt(
-		glm::vec3(eye),
-		glm::vec3(0.0f, 0.0f, 0.0f),
-		glm::vec3(0.0f, 1.0f, 0.0f)
-	), program);
-	setVec3("viewPosition", eye, program);
+	shaderManager.useShader(baseShader);
+	camera.changeViewDistance(3);
+	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(angle));
+	camera.reComputeView();
+	camera.setUniformPos("viewPosition", shaderManager.getShader(baseShader).value());
+	camera.setUniformView("view", shaderManager.getShader(baseShader).value());
 
-	setMaterial(ground, program);
-
-	//setMat3("texture", glm::mat3(glm::scale(glm::mat4(1.0f), glm::vec3(12.0f))), program);
+	if (auto lock = shaderManager.getShader(baseShader)->lock())
+	{
+		lock->setMaterial(ground);
+	}
 
 	groundPlane.draw();
 	//flower.animateUpdate();
-	flower.wigglePlants();
-	plant.wigglePlants();
+	//flower.wigglePlants();
+	//plant.wigglePlants();
+	shaderManager.useShader(plantShader);
+	camera.setUniformPos("viewPosition", shaderManager.getShader(plantShader).value());
+	camera.setUniformView("view", shaderManager.getShader(plantShader).value());
+
+	plant.updateNoiseTexture();
+
 	plant.draw();
 	flower.draw();
-	setMaterial(bark, program);
-	setMat3("texture", glm::mat3(10), program);
-	//meshy.draw();
-	//leafMesh.draw();
 
 	trees->draw();
 	//trees->tick(deltaTime);
@@ -406,7 +266,8 @@ int main(int argc, char** argv)
 	window.setReshapeCallback([](int w, int h)
 		{
 			glViewport(0, 0, w, h);
-			setMat4("projection", glm::perspective(glm::radians(60.0f), (GLfloat)w / h, 1.0f, 200.0f), program);
+			camera.onWindowResize(static_cast<float>(w), static_cast<float>(h));
+			shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
 		});
 
 	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
@@ -416,8 +277,6 @@ int main(int argc, char** argv)
 	lock = 1;
 
 	setupScene();
-
-
 
 	while (!window.shouldClose())
 	{
