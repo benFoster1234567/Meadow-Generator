@@ -1,30 +1,42 @@
+//#define ENSURE_GPU_RENDERED
+//#define LOG_DEBUG_INFO
+
+#ifdef _WIN32
+#ifdef ENSURE_GPU_RENDERED
+#include <windows.h>
+
+extern "C" {
+	__declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;// Optimus: force switch to discrete GPU
+	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;//AMD
+}
+#endif
+#endif
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-
-#include <glm/mat4x4.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "GLDebugMessageHandler.h"
 
 #include "Window.h"
-#include "OpenGL.h"
 #include "Mesh.h"
 
 #include "Ui.h"
 #include "Plant.h"
-#include "Plane.h"
 
-#include <thread>
-#include "TreeGenerator.h"
 #include "TreeController.h"
 #include "Camera.h"
 #include "ShaderManager.h"
 
-GLuint program;
+
+
+#include <IL/il.h>
+#include <IL/ilu.h>
+#include <IL/ilut.h>
+
+#include <thread>
+
 Material ground, bark, leaves;
-
 Mesh plane(Plane{}, 10.f);
-
-Mesh meshMesh("bunny.obj");
 
 Camera camera{ 1000,700 };
 ShaderManager shaderManager{};
@@ -43,7 +55,179 @@ InstancedMesh leafMesh{ Mesh{Plane{}, 0.5f} };
 std::unique_ptr<TreeManager> trees{ nullptr };
 bool loading = false;
 
-static void initialize()
+/*
+TODO:
+- Fix tree texturing
+- optimize memory and cpu usage
+- Multiple trees
+- Fix sizes
+- add apple picking
+*/
+std::atomic<bool> isInitialized{ false };
+int levels = 5;
+
+GLuint loadTexture(const char* fileName);
+void initialize();
+void setupScene();
+void generatePlants();
+void display(Window& window, float deltaTime);
+
+int main(int argc, char** argv)
+{
+	if (!glfwInit()) return -1;
+	Window window(1000, 700);
+	window.makeContextCurrent();
+
+	glewExperimental = GL_TRUE;
+	if (glewInit() != GLEW_OK)
+	{
+		DBG_LOG(DebugMsgType::GLError, "GLEW Init failed!\n");
+	}
+
+	DebugHandler::setUpOpenGL();
+	DebugHandler::instance().setTypeRecord(DebugMsgType::GLStatus, false);
+	DebugHandler::instance().setTypeRecord(DebugMsgType::Default, false);
+
+	ilInit();
+
+	initialize();
+
+	std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
+	std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
+
+	int number = 0;
+	ImGuiUi ui;
+	ui.setup(window);
+
+	int leafStride = 0;
+
+	auto* text = static_cast<Text*>(ui.addElement(std::make_unique<Text>("")));
+	auto* slider = ui.addElement(std::make_unique<SliderFloat>(&cameraSpeed, "Camera Orbit Speed", 0.f, 20.f));
+	auto* sliderLevels = ui.addElement(std::make_unique<SliderInt>(&levels, "Level", 0, 15));
+	auto* sliderLeafStride = ui.addElement(std::make_unique<SliderInt>(&leafStride, "Leaf Stride", 0, 10));
+	sliderLevels->setVisibility(false);
+	slider->setVisibility(false);
+	text->setVisibility(true);
+
+	auto animateLoading = [text](std::string_view str, float deltaTime)
+		{
+			char frames[4] = { '\\', '|', '/', '-' };
+
+			static unsigned int frame = 0;
+			static float timer = .5f;
+			timer = timer - deltaTime;
+
+			if (timer < 0)
+			{
+				frame = (frame + 1) % 4;
+				timer = .5f;
+			}
+
+			std::string s = "";
+			s.push_back(frames[frame]);
+			s += " ";
+			s += str;
+
+			text->str = s;
+		};
+
+	window.setKeyCallback([&window](int key, int scancode, int action, int mods)
+		{
+			if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+			{
+				window.setShouldClose(true);
+			}
+		});
+
+	window.setReshapeCallback([](int w, int h)
+		{
+			glViewport(0, 0, w, h);
+			camera.onWindowResize(static_cast<float>(w), static_cast<float>(h));
+			shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
+		});
+
+	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
+
+	int lock = 0;
+	std::thread setupThread(generatePlants);
+	lock = 1;
+
+	setupScene();
+
+	while (!window.shouldClose())
+	{
+		float deltaTime = window.deltaTime();
+		DebugHandler::instance().tick(deltaTime);
+
+		int levelsTemp = levels;
+		int leafStrideTemp = leafStride;
+
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		if (!isInitialized.load())
+		{
+			animateLoading("Loading...", window.deltaTime());
+		}
+
+		else
+		{
+			if (setupThread.joinable())
+			{
+				setupThread.join();
+				std::cout << "joined\n";
+				text->setVisibility(false);
+				slider->setVisibility(true);
+				sliderLevels->setVisibility(true);
+				plant.initialize();
+				flower.initialize();
+			}
+
+			display(window, deltaTime);
+		}
+
+		ui.renderFrame(window);
+		window.pollEvents();
+		window.swapBuffers();
+
+		if (levels != levelsTemp) trees->changeLevels(levels);
+		if (leafStride != leafStrideTemp) trees->changeLeafStride(leafStride);
+	}
+	if (setupThread.joinable())
+	{
+		setupThread.join();
+	}
+	return 0;
+}
+
+GLuint loadTexture(const char* fileName)
+{
+	GLuint imageID;
+	ilGenImages(1, &imageID);
+	ilBindImage(imageID);
+	ilEnable(IL_ORIGIN_SET);
+	ilOriginFunc(IL_ORIGIN_LOWER_LEFT);
+	if (!ilLoadImage((ILstring)fileName))
+	{
+		std::cout << "Couldn't load the following texture file: " << fileName << "\n";
+		ilDeleteImages(1, &imageID);
+		return 0;
+	}
+	ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
+	GLuint tid;
+	glGenTextures(1, &tid);
+	glBindTexture(GL_TEXTURE_2D, tid);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 0, GL_RGBA, GL_UNSIGNED_BYTE, ilGetData());
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	ilDeleteImages(1, &imageID);
+	return tid;
+}
+
+void initialize()
 {
 	loading = true;
 
@@ -96,62 +280,67 @@ static void initialize()
 	camera.changeViewDistance(10);
 	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(10.f));
 	camera.onWindowResize(static_cast<float>(1000), static_cast<float>(700));
+	camera.reComputeView();
 	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
 	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(baseShader).value());
 
-
-	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.01f)), 6);
+	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.1f)), 6);
 	trees->initialize();
 	leafMesh.initialize();
 
 	plant.initializeNoise();
 	plant.bindNoise("noiseTexture", 2, shaderManager.getShader(plantShader).value());
 
+	trees->setCount(5);
+	trees->setSpacing(4);
+	trees->setPosJitter(5.f);
+	trees->setRotJitter(0.8f);
+	trees->reloadTreeInstances();
+
 }
 
-std::atomic<bool> isInitialized{ false };
 
-static void setupScene()
+void setupScene()
 {
 	plant.addComponent(Mesh{ "grass.obj" }, glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3(0.5, .3, .5)), ground, shaderManager.getShader(plantShader).value());
 
-	glm::mat4 flowerTransform = glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.0f), glm::vec3(1.3, 1, 1.3));
-	//0.7098f, 0.8235f, 0.6784f
+	glm::mat4 flowerTransform{ 1 };
 	Material stem{ .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{0.23f, 0.58f, 0.18 }, .specular = glm::vec3(0.4), .shininess = 1, .diffuseMap = loadTexture("stemDiff.png") };
 	Material flowerMat{ .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{1,.2,.2},.specular = glm::vec3(0.4), .shininess = 1, .diffuseMap = loadTexture("flowerPetal.png") };
 	Material bud{ .ambient = glm::vec3{1.f}, .diffuse = {1, 1, 0} };
 
-	flower.addComponent(Mesh{ "stem.obj" }, flowerTransform, stem, shaderManager.getShader(baseShader).value());
+	flower.addComponent(Mesh{ "stem.obj" }, flowerTransform, stem, shaderManager.getShader(plantShader).value());
 
-	ModelComponent petalComponent(Mesh{ "petals.obj" }, flowerTransform, flowerMat, shaderManager.getShader(baseShader).value());
+	ModelComponent petalComponent(Mesh{ "petals.obj" }, flowerTransform, flowerMat, shaderManager.getShader(plantShader).value());
+
 	petalComponent.colors.emplace_back(1.f, .5f, 0.f);
 	petalComponent.colors.emplace_back(.6, .6, 1);
 	petalComponent.colors.emplace_back(1, 0.5, 0.5);
 	petalComponent.colors.emplace_back(1, 1, 0);
 
-	//flower.addComponent(Mesh{ "petals.obj" }, flowerTransform, flowerMat, program);
 	flower.addComponent(petalComponent);
-	flower.addComponent(Mesh{ "bud.obj" }, flowerTransform, bud, shaderManager.getShader(baseShader).value());
-	flower.addComponent(Mesh{ "leaf1.obj" }, flowerTransform, leaves, shaderManager.getShader(baseShader).value());
-	flower.addComponent(Mesh{ "leaf2.obj" }, flowerTransform, leaves, shaderManager.getShader(baseShader).value());
-	flower.addComponent(Mesh{ "leaf3.obj" }, flowerTransform, leaves, shaderManager.getShader(baseShader).value());
+	flower.addComponent(Mesh{ "bud.obj" }, flowerTransform, bud, shaderManager.getShader(plantShader).value());
+	flower.addComponent(Mesh{ "leaf1.obj" }, flowerTransform, leaves, shaderManager.getShader(plantShader).value());
+	flower.addComponent(Mesh{ "leaf2.obj" }, flowerTransform, leaves, shaderManager.getShader(plantShader).value());
+	flower.addComponent(Mesh{ "leaf3.obj" }, flowerTransform, leaves, shaderManager.getShader(plantShader).value());
+
+	plant.unitize();
+	flower.unitize();
 
 	groundPlane.addComponent(plane, glm::mat4(1), ground, shaderManager.getShader(baseShader).value());
 	groundPlane.addInstanceTransform(glm::translate(glm::mat4(1), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3{ 10 }));
 	groundPlane.initialize();
 }
 
-static void setupCamera()
-{
-
-}
-
-static void generatePlants()
+void generatePlants()
 {
 	auto now = std::chrono::steady_clock::now();
 
-	plant.arrangePlants(10, 10, 0.25);
+	plant.makeFractal(7, 4, 18);
+	flower.makeFractal(7, 4, 18);
 
+	//plant.arrangePlants(50, 50, 0.25);
+	//flower.arrangePlants(20, 20, 0.6);
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
 	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
@@ -162,18 +351,14 @@ static void generatePlants()
 	isInitialized.store(true);
 }
 
-
-int levels = 5;
-
-static void display(Window& window)
+void display(Window& window, float deltaTime)
 {
 	static float angle = 0.f;
-	float deltaTime = window.deltaTime();
-	plant.tick(deltaTime);
+
+	Plant::tick(deltaTime * 0.5f);
 	angle += cameraSpeed * deltaTime;
 
 	shaderManager.useShader(baseShader);
-	camera.changeViewDistance(3);
 	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(angle));
 	camera.reComputeView();
 	camera.setUniformPos("viewPosition", shaderManager.getShader(baseShader).value());
@@ -183,11 +368,11 @@ static void display(Window& window)
 	{
 		lock->setMaterial(ground);
 	}
-
+	{
+		shaderManager.getShader(baseShader)->lock()->setMat3("texture", glm::mat3(50.f));
+	}
 	groundPlane.draw();
-	//flower.animateUpdate();
-	//flower.wigglePlants();
-	//plant.wigglePlants();
+
 	shaderManager.useShader(plantShader);
 	camera.setUniformPos("viewPosition", shaderManager.getShader(plantShader).value());
 	camera.setUniformView("view", shaderManager.getShader(plantShader).value());
@@ -199,125 +384,4 @@ static void display(Window& window)
 
 	trees->draw();
 	//trees->tick(deltaTime);
-}
-
-int main(int argc, char** argv)
-{
-	if (!glfwInit()) return -1;
-	Window window(1000, 700);
-	window.makeContextCurrent();
-
-	glewExperimental = GL_TRUE;
-	if (glewInit() != GLEW_OK)
-	{
-		std::cout << "GLEW Init failed!\n";
-	}
-
-	ilInit();
-
-	initialize();
-
-
-	int number = 0;
-	ImGuiUi ui;
-	ui.setup(window);
-
-	int leafStride = 0;
-
-	auto* text = static_cast<Text*>(ui.addElement(std::make_unique<Text>("")));
-	auto* slider = ui.addElement(std::make_unique<SliderFloat>(&cameraSpeed, "Camera Orbit Speed", 0.f, 20.f));
-	auto* sliderLevels = ui.addElement(std::make_unique<SliderInt>(&levels, "Level", 0, 15));
-	auto* sliderLeafStride = ui.addElement(std::make_unique<SliderInt>(&leafStride, "Leaf Stride", 0, 10));
-	sliderLevels->setVisibility(false);
-	slider->setVisibility(false);
-	text->setVisibility(true);
-
-	auto animateLoading = [text](std::string_view str, float deltaTime)
-		{
-			char frames[4] = { '\\', '|', '/', '-' };
-
-			static unsigned int frame = 0;
-			static float timer = .5f;
-			timer = timer - deltaTime;
-
-			if (timer < 0)
-			{
-				frame = (frame + 1) % 4;
-				timer = .5f;
-			}
-
-			std::string s = "";
-			s.push_back(frames[frame]);
-			s += " ";
-			s += str;
-
-			text->str = s;
-		};
-
-
-	window.setKeyCallback([&window](int key, int scancode, int action, int mods)
-		{
-			if (key == GLFW_KEY_Q && action == GLFW_PRESS)
-			{
-				window.setShouldClose(true);
-			}
-		});
-
-	window.setReshapeCallback([](int w, int h)
-		{
-			glViewport(0, 0, w, h);
-			camera.onWindowResize(static_cast<float>(w), static_cast<float>(h));
-			shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
-		});
-
-	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
-
-	int lock = 0;
-	std::thread setupThread(generatePlants);
-	lock = 1;
-
-	setupScene();
-
-	while (!window.shouldClose())
-	{
-		int levelsTemp = levels;
-		int leafStrideTemp = leafStride;
-
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		if (!isInitialized.load())
-		{
-			animateLoading("Loading...", window.deltaTime());
-		}
-
-		else
-		{
-			if (setupThread.joinable())
-			{
-				setupThread.join();
-				std::cout << "joined\n";
-				text->setVisibility(false);
-				slider->setVisibility(true);
-				sliderLevels->setVisibility(true);
-				plant.initialize();
-				flower.initialize();
-			}
-
-			display(window);
-		}
-
-
-		ui.renderFrame(window);
-		window.pollEvents();
-		window.swapBuffers();
-
-
-		if (levels != levelsTemp) trees->changeLevels(levels);
-		if (leafStride != leafStrideTemp) trees->changeLeafStride(leafStride);
-	}
-	if (setupThread.joinable())
-	{
-		setupThread.join();
-	}
-	return 0;
 }

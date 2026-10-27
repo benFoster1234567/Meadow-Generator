@@ -179,7 +179,7 @@ public:
 	explicit Mesh(std::string_view path)
 	{
 		loadObjModel(path);
-		unitize();
+		//unitize();
 	}
 
 	Mesh(Cube, float side)
@@ -192,47 +192,37 @@ public:
 		loadPlaneModel(size);
 	}
 
-	glm::mat4 unitize()
+	static glm::mat4 unitize(const std::vector<std::reference_wrapper<Mesh>>& meshes)
 	{
-
 		using namespace glm;
 
-		if (m_data.empty())
-		{
-			return 1;
-		}
-
 		vec3 lowerBounds{ std::numeric_limits<float>().max() };
-		vec3 upperBounds{ std::numeric_limits<float>().min() };
+		vec3 upperBounds{ std::numeric_limits<float>::lowest() };
 
-		for (const auto& value : m_data)
-		{
-			if (value.point.x < lowerBounds.x) lowerBounds.x = value.point.x;
-			if (value.point.y < lowerBounds.y) lowerBounds.y = value.point.y;
-			if (value.point.z < lowerBounds.z) lowerBounds.z = value.point.z;
+		for (const auto& mesh : meshes)
+			for (const auto& value : mesh.get().m_data)
+			{
+				if (value.point.x < lowerBounds.x) lowerBounds.x = value.point.x;
+				if (value.point.y < lowerBounds.y) lowerBounds.y = value.point.y;
+				if (value.point.z < lowerBounds.z) lowerBounds.z = value.point.z;
 
-			if (value.point.x > upperBounds.x) upperBounds.x = value.point.x;
-			if (value.point.y > upperBounds.y) upperBounds.y = value.point.y;
-			if (value.point.z > upperBounds.z) upperBounds.z = value.point.z;
-		}
+				if (value.point.x > upperBounds.x) upperBounds.x = value.point.x;
+				if (value.point.y > upperBounds.y) upperBounds.y = value.point.y;
+				if (value.point.z > upperBounds.z) upperBounds.z = value.point.z;
+			}
 
 		vec3 bounds = upperBounds - lowerBounds;
 
-		float scaleFactor = 1.0f;
-
-		if (bounds.x >= bounds.y && bounds.x >= bounds.z) scaleFactor = bounds.x;
-		else if (bounds.y >= bounds.x && bounds.y >= bounds.z) scaleFactor = bounds.y;
-		else if (bounds.z >= bounds.y && bounds.z >= bounds.x) scaleFactor = bounds.z;
-
+		float scaleFactor = std::max({ bounds.x, bounds.y, bounds.z });
 		if (scaleFactor == 0) scaleFactor = 0.0001f;
 
 		const mat4 unitizeMatrix = scale(mat4(1), vec3(1 / scaleFactor));
 
-
-		for (auto& value : m_data)
-		{
-			value.point = unitizeMatrix * vec4(value.point, 1);
-		}
+		for (auto& mesh : meshes)
+			for (auto& value : mesh.get().m_data)
+			{
+				value.point = unitizeMatrix * vec4(value.point, 1);
+			}
 
 		return unitizeMatrix;
 	}

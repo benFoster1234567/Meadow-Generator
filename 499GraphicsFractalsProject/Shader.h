@@ -1,4 +1,5 @@
 #pragma once
+#include "GLDebugMessageHandler.h"
 
 #include "Material.h"
 #include <GL/glew.h>
@@ -97,7 +98,10 @@ private:
 
 		GLint loc = glGetUniformLocation(m_program, name);
 		if (loc == -1)
-			fprintf(stderr, "Warning: uniform '%s' not found (or optimized out)\n", name);
+		{
+			DBG_LOG(DebugMsgType::GLWarning, "Warning: uniform " + std::string(name) + " not found(or optimized out)");
+		}
+
 		m_locations.emplace(name, loc);
 		return loc;
 	}

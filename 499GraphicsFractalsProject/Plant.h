@@ -9,8 +9,6 @@
 
 #include "Mesh.h"
 #include "Random.h"
-#include "OpenGL.h"
-#include <queue>
 #include "Noise.h"
 #include "Shader.h"
 
@@ -40,22 +38,71 @@ struct ModelComponent
 
 };
 
+
 class Plant
 {
 	static constexpr size_t NOISE_SIZE = 64;
 
 	bool m_initialized{ false };
 	bool m_instancesChanged{ false };
-	float m_time{};
 
-	Noise4D m_noise{};
-	GLuint m_noiseTexId = 0;
+	inline static struct
+	{
+		Noise4D m_noise{};
+		GLuint m_noiseTexId{};
+		float m_time{ 0.f };
+	}s_noiseGlobal{}; //makes sense to be static since we only really need it from one source?
+
 
 	std::vector<ModelComponent> m_components{};
 	std::vector<glm::mat4> m_instanceTransforms{};
 	std::vector<glm::vec4> m_instanceColors{};
 
 	glm::mat4 m_transform{ 1.f };
+
+
+	static std::vector<float> getNoiseData(size_t size, float frequency, float time)
+	{
+		std::vector<float> data(size * size);
+
+		for (int x{}; x < size; ++x)
+			for (int y{}; y < size; ++y)
+			{
+				static constexpr float placeHolder = 1.0f;
+				data[y * size + x] = s_noiseGlobal.m_noise.compute(glm::vec4{ x,placeHolder,y,time });
+			}
+
+		return data;
+	}
+
+
+	static GLuint generateNoiseTexture(size_t size, float frequency, float time)
+	{
+		auto data = getNoiseData(size, frequency, time);
+		GLuint tex = 0;
+		glGenTextures(1, &tex);
+		glBindTexture(GL_TEXTURE_2D, tex);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // one row of 
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, static_cast<GLsizei>(size), static_cast<GLsizei>(size), 0, GL_RED, GL_FLOAT, (GLfloat*)&data[0]);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		return tex;
+	}
+
+	static void updateNoiseTexture(size_t size, float frequency, float time)
+	{
+		auto data = getNoiseData(size, frequency, time);
+		glBindTexture(GL_TEXTURE_2D, s_noiseGlobal.m_noiseTexId);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_RED, GL_FLOAT, (GLfloat*)&data[0]);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
 
 	void destroy()
 	{
@@ -82,48 +129,6 @@ class Plant
 		m_instancesChanged = false;
 	}
 
-	std::vector<float> getNoiseData(size_t size, float frequency, float time)
-	{
-		std::vector<float> data(size * size);
-
-		for (int x{}; x < size; ++x)
-			for (int y{}; y < size; ++y)
-			{
-				static constexpr float placeHolder = 1.0f;
-				data[y * size + x] = m_noise.compute(glm::vec4{ x,placeHolder,y,time });
-			}
-
-		return data;
-	}
-
-
-	GLuint generateNoiseTexture(size_t size, float frequency, float time)
-	{
-		auto data = getNoiseData(size, frequency, time);
-		GLuint tex = 0;
-		glGenTextures(1, &tex);
-		glBindTexture(GL_TEXTURE_2D, tex);
-
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // one row of 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, static_cast<GLsizei>(size), static_cast<GLsizei>(size), 0, GL_RED, GL_FLOAT, (GLfloat*)&data[0]);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		glBindTexture(GL_TEXTURE_2D, 0);
-
-		return tex;
-	}
-
-	void updateNoiseTexture(size_t size, float frequency, float time)
-	{
-		auto data = getNoiseData(size, frequency, time);
-		glBindTexture(GL_TEXTURE_2D, m_noiseTexId);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_RED, GL_FLOAT, (GLfloat*)&data[0]);
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
 
 	std::vector<glm::mat4> packData(const std::vector<glm::mat4>& transforms, const std::vector<glm::vec3>& colors)
 	{
@@ -191,16 +196,21 @@ public:
 		destroy();
 	}
 
-	void initializeNoise()
+	static void initializeNoise()
 	{
-		m_noiseTexId = generateNoiseTexture(NOISE_SIZE, 0.05f, m_time);
+		s_noiseGlobal.m_noiseTexId = generateNoiseTexture(NOISE_SIZE, 0.05f, s_noiseGlobal.m_time);
+	}
+
+	static void tick(float deltaTime)
+	{
+		s_noiseGlobal.m_time += deltaTime;
 	}
 
 	void bindNoise(const char* name, size_t slot, std::weak_ptr<Shader> shader)
 	{
 		if (auto s = shader.lock())
 		{
-			s->bindTexture(name, slot, m_noiseTexId);
+			s->bindTexture(name, slot, s_noiseGlobal.m_noiseTexId);
 		}
 	}
 
@@ -215,42 +225,9 @@ public:
 		return m_components.size() - 1;
 	}
 
-	void tick(float deltaTime)
+	static void updateNoiseTexture()
 	{
-		m_time += deltaTime;
-	}
-
-	void updateNoiseTexture()
-	{
-		updateNoiseTexture(NOISE_SIZE, 0.05, m_time);
-	}
-
-	void wigglePlants()
-	{
-		static float f = 0.f;
-		f += 0.01f;
-
-		for (auto& component : m_components)
-		{
-			std::vector<VertexData> updatedVerts = component.mesh.m_data;
-			std::vector<VertexData> temp = component.mesh.m_data;
-
-			for (auto& v : updatedVerts)
-			{
-				float offset = m_noise.compute(glm::vec4{ v.point.x, v.point.y, v.point.z, f }) / 10;
-				float yNorm = glm::normalize(v.point).y;
-				v.point.x += offset * yNorm;
-				v.point.z += offset * yNorm;
-			}
-
-			component.mesh.m_data.assign(updatedVerts.begin(), updatedVerts.end());
-			glBindVertexArray(component.vao);
-			glBindBuffer(GL_ARRAY_BUFFER, component.vbo);
-			glBufferSubData(GL_ARRAY_BUFFER, 0, component.mesh.m_data.size() * sizeof(VertexData), component.mesh.m_data.data());
-			component.mesh.m_data.assign(temp.begin(), temp.end());
-
-		}
-
+		updateNoiseTexture(NOISE_SIZE, 0.05, s_noiseGlobal.m_time);
 	}
 
 	void addComponent(ModelComponent c)
@@ -261,6 +238,19 @@ public:
 	void addInstanceColor(const glm::vec4& color)
 	{
 		m_instanceColors.push_back(color);
+	}
+
+	void unitize()
+	{
+		std::vector<std::reference_wrapper<Mesh>> meshList{};
+
+		for (auto& c : m_components)
+		{
+			meshList.push_back(c.mesh);
+		}
+
+		Mesh::unitize(meshList);
+
 	}
 
 	void addInstanceTransform(glm::mat4 localTransform)
@@ -324,7 +314,7 @@ public:
 				{
 					float theta = i * interval + r;
 
-					float x = stackFrame.radius * angledUnitVectors[i].x + Random::nextFloat(-randomize, randomize); //replace with something way faster
+					float x = stackFrame.radius * angledUnitVectors[i].x + Random::nextFloat(-randomize, randomize);
 					float z = stackFrame.radius * angledUnitVectors[i].y + Random::nextFloat(-randomize, randomize);
 
 					glm::vec3 p = { x, 0, z };
@@ -410,7 +400,7 @@ public:
 				lock->useShader();
 				lock->setMat4("model", component.localTransform * m_transform);
 				lock->setMaterial(component.material, false);
-				lock->bindTexture("noiseTexture", 2, m_noiseTexId);
+				lock->bindTexture("noiseTexture", 2, s_noiseGlobal.m_noiseTexId);
 				glBindVertexArray(component.vao);
 				glDrawElementsInstanced(GL_TRIANGLES, component.mesh.m_indices.size(), GL_UNSIGNED_INT, (void*)0, m_instanceTransforms.size());
 			}

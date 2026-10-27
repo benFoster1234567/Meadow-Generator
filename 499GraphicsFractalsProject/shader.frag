@@ -69,7 +69,7 @@ void main()
 	float Ks = Kd > 0 ? pow(max(dot(N, H), 0.0), material.shininess) : 0.0;
 	
 	vec3 texColor = texture(diffuseMap, in_TexCoord0).rgb;
-	vec3 c = in_Color.rgb;
+	vec3 c = blendSoftLight(in_Color.rgb, texColor);
 	
 	if (length(c) ==0)
 	{

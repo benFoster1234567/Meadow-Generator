@@ -15,6 +15,7 @@ uniform mat4 view;
 uniform mat4 projection;
 uniform mat3 texture;
 
+
 void main() 
 {
 	mat4 m = in_InstanceData;
@@ -29,13 +30,9 @@ void main()
 	mat4 worldModel = m * model;
 
 	vec3 worldPosition = vec3(worldModel * vec4(in_Position, 1.0));
-
 	out_Position = worldPosition;
 
-	//out_Normal = in_Normal;
 	out_Normal = mat3(transpose(inverse(worldModel))) * in_Normal;
-	//out_TexCoord0 = vec2(texture * vec3(in_TexCoord0, 1.0));
-	out_TexCoord0 = in_TexCoord0;
+	out_TexCoord0 = vec2(texture * vec3(in_TexCoord0, 1.0));
 	gl_Position = projection * view * vec4(worldPosition, 1.0);
-
 }

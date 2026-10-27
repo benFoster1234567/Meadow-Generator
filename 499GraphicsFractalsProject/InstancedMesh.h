@@ -130,6 +130,11 @@ public:
 		glBindVertexArray(0);
 	}
 
+	size_t instanceCount()
+	{
+		return instanceData.size();
+	}
+
 	void changeInstances(const std::vector<glm::mat4>& newInstances)
 	{
 		instanceData = newInstances;
@@ -145,8 +150,7 @@ public:
 		glGenBuffers(1, &m_ibo);
 
 		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-		glBufferData(GL_ARRAY_BUFFER, m_mesh.m_data.size() * sizeof(VertexData), m_mesh.m_data.data(), GL_DYNAMIC_DRAW
-		);
+		glBufferData(GL_ARRAY_BUFFER, m_mesh.m_data.size() * sizeof(VertexData), m_mesh.m_data.data(), GL_DYNAMIC_DRAW);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)offsetof(VertexData, point));
 		glEnableVertexAttribArray(0);
@@ -158,7 +162,7 @@ public:
 		glEnableVertexAttribArray(2);
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_mesh.m_indices.size() * sizeof(unsigned int), m_mesh.m_indices.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_mesh.m_indices.size() * sizeof(unsigned int), m_mesh.m_indices.data(), GL_DYNAMIC_DRAW);
 
 		glBindBuffer(GL_ARRAY_BUFFER, m_ibo);
 		glBufferData(GL_ARRAY_BUFFER, instanceData.size() * sizeof(glm::mat4), instanceData.data(), GL_DYNAMIC_DRAW);
@@ -176,6 +180,11 @@ public:
 		m_initialized = true;
 		m_dirty = false;
 		glBindVertexArray(0);
+	}
+
+	std::vector<glm::mat4> getInstances()
+	{
+		return instanceData;
 	}
 
 	void changeInstanceStride(size_t stride)
@@ -198,6 +207,9 @@ public:
 	void changeMesh(Mesh mesh)
 	{
 		m_mesh = std::move(mesh);
+
+		if (!m_initialized) return;
+
 		glBindVertexArray(m_vao);
 		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
 		glBufferData(GL_ARRAY_BUFFER, m_mesh.m_data.size() * sizeof(VertexData), m_mesh.m_data.data(), GL_DYNAMIC_DRAW);

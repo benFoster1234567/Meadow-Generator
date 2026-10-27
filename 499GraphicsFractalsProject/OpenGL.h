@@ -96,32 +96,6 @@ GLuint initializeShaders(const char* v_shaderString, const char* f_shaderString)
 	return shaderProgram;
 }
 
-GLuint loadTexture(const char* fileName)
-{
-	GLuint imageID;
-	ilGenImages(1, &imageID);
-	ilBindImage(imageID);
-	ilEnable(IL_ORIGIN_SET);
-	ilOriginFunc(IL_ORIGIN_LOWER_LEFT);
-	if (!ilLoadImage((ILstring)fileName))
-	{
-		std::cout << "Couldn't load the following texture file: " << fileName << "\n";
-		ilDeleteImages(1, &imageID);
-		return 0;
-	}
-	ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
-	GLuint tid;
-	glGenTextures(1, &tid);
-	glBindTexture(GL_TEXTURE_2D, tid);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 0, GL_RGBA, GL_UNSIGNED_BYTE, ilGetData());
-	glGenerateMipmap(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	ilDeleteImages(1, &imageID);
-	return tid;
-}
+
 
 

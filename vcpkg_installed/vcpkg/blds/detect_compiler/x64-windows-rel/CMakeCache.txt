@@ -337,14 +337,14 @@ X_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=OFF
 X_VCPKG_APPLOCAL_DEPS_SERIALIZED:BOOL=OFF
 
 //No help, variable specified on the command line.
-Z_VCPKG_ROOT_DIR:UNINITIALIZED=C:/Program Files/Microsoft Visual Studio/18/Community/VC/vcpkg
+Z_VCPKG_ROOT_DIR:UNINITIALIZED=C:/Program Files/Microsoft Visual Studio/18/Community/VC/vcpkg/
 
 //The directory which contains the installed libraries for each
 // triplet
 _VCPKG_INSTALLED_DIR:PATH=C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed
 
 //No help, variable specified on the command line.
-_VCPKG_ROOT_DIR:UNINITIALIZED=C:/Program Files/Microsoft Visual Studio/18/Community/VC/vcpkg
+_VCPKG_ROOT_DIR:UNINITIALIZED=C:/Program Files/Microsoft Visual Studio/18/Community/VC/vcpkg/
 
 //Value Computed by CMake
 detect_compiler_BINARY_DIR:STATIC=C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed/vcpkg/blds/detect_compiler/x64-windows-rel

@@ -12,28 +12,28 @@
 class Noise4D
 {
 
-	std::array<int, 256> p{};
+	std::array<short int, 256> p{};
 	std::random_device rd;
 	std::mt19937 g;
 
-	std::array<glm::vec4, 16> gradients4D
+	static constexpr std::array<glm::vec4, 16> gradients4D
 	{
-		glm::vec4{ 1.f, 1.f, 1.f, 1.f},
-		glm::vec4{ 1.f, 1.f, 1.f,-1.f},
-		glm::vec4{ 1.f, 1.f,-1.f, 1.f},
-		glm::vec4{ 1.f, 1.f,-1.f,-1.f},
-		glm::vec4{ 1.f,-1.f, 1.f, 1.f},
-		glm::vec4{ 1.f,-1.f, 1.f,-1.f},
-		glm::vec4{ 1.f,-1.f,-1.f, 1.f},
-		glm::vec4{ 1.f,-1.f,-1.f,-1.f},
-		glm::vec4{-1.f, 1.f, 1.f, 1.f},
-		glm::vec4{-1.f, 1.f, 1.f,-1.f},
-		glm::vec4{-1.f, 1.f,-1.f, 1.f},
-		glm::vec4{-1.f, 1.f,-1.f,-1.f},
-		glm::vec4{-1.f,-1.f, 1.f, 1.f},
-		glm::vec4{-1.f,-1.f, 1.f,-1.f},
-		glm::vec4{-1.f,-1.f,-1.f, 1.f},
-		glm::vec4{-1.f,-1.f,-1.f,-1.f}
+		glm::ivec4{ 1, 1, 1, 1},
+		glm::ivec4{ 1, 1, 1,-1},
+		glm::ivec4{ 1, 1,-1, 1},
+		glm::ivec4{ 1, 1,-1,-1},
+		glm::ivec4{ 1,-1, 1, 1},
+		glm::ivec4{ 1,-1, 1,-1},
+		glm::ivec4{ 1,-1,-1, 1},
+		glm::ivec4{ 1,-1,-1,-1},
+		glm::ivec4{-1, 1, 1, 1},
+		glm::ivec4{-1, 1, 1,-1},
+		glm::ivec4{-1, 1,-1, 1},
+		glm::ivec4{-1, 1,-1,-1},
+		glm::ivec4{-1,-1, 1, 1},
+		glm::ivec4{-1,-1, 1,-1},
+		glm::ivec4{-1,-1,-1, 1},
+		glm::ivec4{-1,-1,-1,-1}
 	};
 
 	float fade(float t)
@@ -46,15 +46,9 @@ class Noise4D
 		return a + factor * (b - a);
 	}
 
-	glm::vec4 gradient(const glm::vec4& target)
+	glm::vec4 gradient(const glm::ivec4& target)
 	{
-		int x = static_cast<int>(std::floor(target.x));
-		int y = static_cast<int>(std::floor(target.y));
-		int z = static_cast<int>(std::floor(target.z));
-		int w = static_cast<int>(std::floor(target.w));
-
-		int h = p[p[p[p[x & 255] + y & 255] + z & 255] + w & 255];
-
+		int h = p[p[p[p[target.x & 255] + target.y & 255] + target.z & 255] + target.w & 255];
 		return gradients4D[h & 15];
 	}
 
@@ -70,20 +64,22 @@ public:
 	float compute(const glm::vec4& p)
 	{
 		using namespace glm;
-		vec4 p0 = glm::floor(p);
+		ivec4 p0 = glm::floor(p);
 
 		std::array<float, 16> influence{};
 
+		constexpr std::array<ivec4, 16> corners =
+		{
+			ivec4{0,0,0,0}, ivec4{0,0,0,1}, ivec4{0,0,1,0}, ivec4{0,0,1,1},
+			ivec4{0,1,0,0}, ivec4{0,1,0,1}, ivec4{0,1,1,0}, ivec4{0,1,1,1},
+			ivec4{1,0,0,0}, ivec4{1,0,0,1}, ivec4{1,0,1,0}, ivec4{1,0,1,1},
+			ivec4{1,1,0,0}, ivec4{1,1,0,1}, ivec4{1,1,1,0}, ivec4{1,1,1,1}
+		};
+
 		for (int n{ 0 }; n < 16; ++n)
 		{
-			auto vecSource = vec4{
-			static_cast<float>(n >> 3 & 1),
-			static_cast<float>(n >> 2 & 1),
-			static_cast<float>(n >> 1 & 1),
-			static_cast<float>(n & 1)
-			} + p0;
-
-			vec4 distance = p - (vecSource);
+			auto vecSource = corners[n] + p0;
+			vec4 distance = p - vec4(vecSource);
 			influence[n] = dot(gradient(vecSource), distance);
 		}
 
@@ -99,6 +95,8 @@ public:
 			int h = l + 8;
 			wInterp[l] = lerp(influence[l], influence[h], u);
 		}
+
+		//TODO: noise shifting along the y axis is broken and choppy.
 
 		//interpolate y
 		std::array<float, 4> zInterp{};

@@ -306,7 +306,7 @@ public:
 			float theta = 0.f;
 
 
-			float scaleFactor = 0.1f;
+			float scaleFactor = 0.2f;
 			for (int j{}; j < sf.n; ++j)
 			{
 				theta += glm::radians(360.f / static_cast<float>(sf.n));
@@ -333,7 +333,8 @@ public:
 				// if (j == sf.n / 2) sf.deltaX = -sf.deltaX;
 
 				float t = static_cast<float>(j + 1) / static_cast<float>(n + 1);
-				scaleFactor = 0.2f + 1 / (10 * (2 * t * glm::sqrt(t) + 0.1f));
+				scaleFactor = 0.25f + 1 / (10 * (2 * t * glm::sqrt(t) + 0.1f));
+
 
 				glm::vec3 scaleTemp = glm::vec3(scaleFactor * sf.scale.x, sf.scale.y, scaleFactor * sf.scale.z);
 
@@ -393,12 +394,12 @@ public:
 
 		}
 
-		std::cout << "vertex count: " << (m_layerCount * m_layerShape.size()) << "\n";
+		//std::cout << "vertex count: " << (m_layerCount * m_layerShape.size()) << "\n";
 
-		for (int i{}; i < perLevel.size(); ++i)
-		{
-			std::cout << i << " : " << perLevel[i] << "\n";
-		}
+		//for (int i{}; i < perLevel.size(); ++i)
+		//{
+		//	std::cout << i << " : " << perLevel[i] << "\n";
+		//}
 	}
 
 	Mesh getMesh()
