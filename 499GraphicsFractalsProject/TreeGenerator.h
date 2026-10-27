@@ -201,9 +201,7 @@ public:
 		return m_leafInstances;
 	}
 
-
-
-	void generateTreeWithNoise(const glm::mat4& local)
+	void generateTreeWithNoise(const glm::mat4& local, int levels, int n, float stride)
 	{
 		//local * up * Rnew?
 
@@ -211,9 +209,13 @@ public:
 
 		struct StackFrame
 		{
-			glm::mat4 local;
+			VertexLayer parent;
+			glm::mat4 localRot;
+			glm::mat4 localPos;
 			float girth;
 			float stride;
+			int level;
+			int n;
 		};
 
 		std::vector<StackFrame> stack{};
@@ -224,26 +226,53 @@ public:
 		constexpr float yPlane = 20.f;
 		constexpr float zPlane = 40.f;
 
+		VertexLayer layer0 = addLayer(std::nullopt, local, 1, 10);
+
+		stack.push_back({ .parent = layer0, .localRot = 1, .localPos = local, .girth = 1, .stride = 1,.level = levels,.n = n });
+
+		float theta = 0.0f;
+		float thetaDelta = 45.0f;
+
+		constexpr std::array<glm::vec3, 4> dir =
+		{
+			glm::vec3{ 1,  1.0f, 1},
+			glm::vec3{ -1, 1.0f, -1},
+			glm::vec3{ -1, 1.0f, 1},
+			glm::vec3{ 1,  1.0f, -1}
+		};
+
+		glm::vec3 axisRot{};
 		while (!stack.empty())
 		{
+
 			state += stateDelta;
+			theta += thetaDelta;
 
 			StackFrame sf = stack.back();
 			stack.pop_back();
 
-			const glm::vec3 currentPos(sf.local[3]);
+			VertexLayer parent = addLayer(sf.parent, sf.localRot * sf.localPos, 1, 10);
 
-			float targetX = m_noise.compute({ currentPos, xPlane + state });
-			float targetY = m_noise.compute({ currentPos, yPlane + state });
-			float targetZ = m_noise.compute({ currentPos, zPlane + state });
+			glm::mat4 translateM(1);
 
-			glm::vec3 target{ targetX, targetY, targetZ };
-			glm::mat4 rot = createLookatMatrix(target);
-			glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(sf.girth));
+			for (int s{}; s < sf.n; ++s)
+			{
+				translateM = glm::translate(glm::mat4(translateM), glm::vec3(0, stride, 0));
 
+				parent = addLayer(parent, sf.localRot * translateM, 1, 10);
 
+				if (s > sf.n * 2 / 3)
+				{
+					//branch out 
+
+					for (const auto& d : dir)
+					{
+						glm::mat4 rot = sf.localRot * glm::mat4(createLookatMatrix(d));
+						stack.push_back(StackFrame{ .parent = parent, .localRot = rot, .localPos = sf.localRot * translateM * rot,.girth = 1, .stride = 1 });
+					}
+				}
+			}
 		}
-
 
 	}
 

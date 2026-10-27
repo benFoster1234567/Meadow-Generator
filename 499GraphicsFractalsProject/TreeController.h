@@ -138,8 +138,9 @@ public:
 	{
 		localTransform = local;
 		tree.addInstance(worldTransform);
-		TreeGenerator t{ 4,16 };
+		TreeGenerator t{ 1,8 };
 		t.generateExampleTree(local, levels, 10, { 1,1,1 }, deltaX, 10.5f, stride, 5.0f, 30);
+		//t.generateTreeWithNoise(local, 10, 5, 1);
 		leafInstancesCached = t.getLeafInstances();
 		tree.changeMesh(t.getMesh());
 

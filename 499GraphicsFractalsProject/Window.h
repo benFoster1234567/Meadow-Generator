@@ -25,7 +25,7 @@ public:
 	Window(unsigned int width, unsigned int height)
 		: m_width{ width }, m_height{ height }
 	{
-		glfwWindowHint(GLFW_SAMPLES, 8);
+		glfwWindowHint(GLFW_SAMPLES, 32);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -37,7 +37,6 @@ public:
 			throw std::runtime_error("glfw failed to create window!\n");
 		}
 
-
 		glEnable(GL_MULTISAMPLE);
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetKeyCallback(m_window, glfwKeyCallback);
@@ -45,6 +44,7 @@ public:
 		glfwSetErrorCallback(glfwErrorCallback);
 		glfwMakeContextCurrent(m_window);
 		glfwSwapInterval(0);
+
 		m_time = static_cast<float>(glfwGetTime());
 	}
 

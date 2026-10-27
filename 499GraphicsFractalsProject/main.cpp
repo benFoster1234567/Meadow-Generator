@@ -1,5 +1,5 @@
-//#define ENSURE_GPU_RENDERED
-//#define LOG_DEBUG_INFO
+#define ENSURE_GPU_RENDERED
+#define LOG_DEBUG_INFO
 
 #ifdef _WIN32
 #ifdef ENSURE_GPU_RENDERED
@@ -26,8 +26,6 @@ extern "C" {
 #include "TreeController.h"
 #include "Camera.h"
 #include "ShaderManager.h"
-
-
 
 #include <IL/il.h>
 #include <IL/ilu.h>
@@ -56,12 +54,18 @@ std::unique_ptr<TreeManager> trees{ nullptr };
 bool loading = false;
 
 /*
+
 TODO:
 - Fix tree texturing
 - optimize memory and cpu usage
-- Multiple trees
+- Multiple trees *
 - Fix sizes
 - add apple picking
+
+BackBurner:
+- make tree generation thread safe
+- do heavy stuff on a background thread
+
 */
 std::atomic<bool> isInitialized{ false };
 int levels = 5;
@@ -284,17 +288,18 @@ void initialize()
 	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
 	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(baseShader).value());
 
-	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.1f)), 6);
+	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.18f,0.18f,0.18f)), 5, 2, 30.5,1.f);
+	//trees->setUpTree(glm::mat4(1), 2, 2, 30.5,1.f);
 	trees->initialize();
 	leafMesh.initialize();
 
 	plant.initializeNoise();
 	plant.bindNoise("noiseTexture", 2, shaderManager.getShader(plantShader).value());
 
-	trees->setCount(5);
-	trees->setSpacing(4);
-	trees->setPosJitter(5.f);
-	trees->setRotJitter(0.8f);
+	trees->setCount(6);
+	trees->setSpacing(20);
+	trees->setPosJitter(10.f);
+	trees->setRotJitter(0.9f);
 	trees->reloadTreeInstances();
 
 }
@@ -336,11 +341,11 @@ void generatePlants()
 {
 	auto now = std::chrono::steady_clock::now();
 
-	plant.makeFractal(7, 4, 18);
-	flower.makeFractal(7, 4, 18);
+	plant.makeFractal(7, 7, 18);
+	//flower.makeFractal(7, 4, 18);
 
-	//plant.arrangePlants(50, 50, 0.25);
-	//flower.arrangePlants(20, 20, 0.6);
+	plant.arrangePlants(50, 50, 0.25);
+	flower.arrangePlants(20, 20, 0.6);
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
 	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
