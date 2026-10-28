@@ -332,7 +332,7 @@ public:
 
 			float radX = sf.stride / sf.deltaX;
 
-			float theta = 0.f;
+			float theta = Random::nextFloat();
 
 
 			float scaleFactor = 0.2f;
@@ -354,38 +354,52 @@ public:
 
 				glm::mat4 offsetMat = glm::translate(glm::mat4(1), glm::vec3{ offsetX, 0,offsetY });
 
-				sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvX * rotX * tPivotX);
-				sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvZ * rotZ * tPivotZ);
+				//sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvX * rotX * tPivotX);
+				//sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvZ * rotZ * tPivotZ);
+				sf.local = sf.local * (tPivotInvX * rotX * tPivotX);
+				sf.local = sf.local * (tPivotInvZ * rotZ * tPivotZ);
 				sf.local = sf.local * offsetMat;
 				// local = local * glm::translate(glm::mat4(1), glm::vec3(0, stride, 0)) * (tPivotInvX * rotX * tPivotX);
 
 				// if (j == sf.n / 2) sf.deltaX = -sf.deltaX;
 
 				float t = static_cast<float>(j + 1) / static_cast<float>(n + 1);
-				scaleFactor = 0.25f + 1 / (10 * (2 * t * glm::sqrt(t) + 0.1f));
+				
+				scaleFactor = 0.2f + 1 / (10 * (2 * t * glm::sqrt(t) + 0.1f));
+				
+				constexpr float minGirth = 0.1f;
 
+				glm::vec3 scaleTemp{};
+				if (glm::length(sf.scale) < minGirth)
+				{
+					scaleTemp = sf.scale;
+				}
+				else
+				{
+					scaleTemp = sf.scale * scaleFactor;
+				}
 
-				glm::vec3 scaleTemp = glm::vec3(scaleFactor * sf.scale.x, sf.scale.y, scaleFactor * sf.scale.z);
-
-				sf.parent = addLayer(sf.parent, sf.local * glm::scale(glm::mat4(1), sf.scale * scaleFactor), noiseScale, textureHeight);
+				//glm::vec3 scaleTemp = glm::vec3(scaleFactor * sf.scale.x, sf.scale.y, scaleFactor * sf.scale.z);
+				int branchCount = sf.levels > levels * 4 / 5 ? 4 : 1;
+				sf.parent = addLayer(sf.parent, sf.local * glm::scale(glm::mat4(1),scaleTemp ), noiseScale, textureHeight);
 
 				if (j > sf.n * 2 / 3)
 				{
 					float d = Random::nextFloat(-20.f, 45.f) + 90.f;
-					theta += glm::radians(360.f / static_cast<float>(n));
+					theta += glm::radians(360.f / static_cast<float>(branchCount ));
 
 					glm::vec3 axis = glm::normalize(glm::vec3(Random::nextFloat(), 0, Random::nextFloat()));
 
+					
 					for (int i{}; i < 2; i++)
 					{
-						StackFrame s = {
-							.parent = sf.parent,
-							.local = sf.local * glm::rotate(glm::mat4(1), theta, {0,1,0}) * glm::rotate(glm::mat4(1), glm::radians(90.f), glm::vec3(1,0,0)),
+						StackFrame s = { .parent = sf.parent, .local = sf.local * glm::rotate(glm::mat4(1), theta * (1 + i), {0,1,0}) * glm::rotate(glm::mat4(1), glm::radians(90.f), glm::vec3(1,0,0)),
 							.levels = sf.levels - 1,
-							.n = std::max(sf.n * 2 / 3, 2),
-							.scale = sf.scale * scaleFactor,
-							.deltaX = sf.deltaX / 2,
-							.deltaZ = sf.deltaZ * -2 / 3,
+							.n = std::max(sf.n * 2 / 3, 1),
+							.scale = scaleTemp,
+							//.scale = sf.scale * scaleFactor,
+							.deltaX = sf.deltaX * 2/ 3,
+							.deltaZ = sf.deltaZ * 2 / 3 - 0.1f,
 							.stride = sf.stride / 2
 						};
 						stack.push_back(s);
@@ -398,23 +412,24 @@ public:
 
 					glm::vec3 axis = glm::normalize(glm::vec3(Random::nextFloat(), 0, Random::nextFloat()));
 
-					for (int i{}; i < 2; i++)
+					for (int i{}; i < branchCount; i++)
 					{
 						float d = Random::nextFloat(-90.f, 90.f);
 						StackFrame s = {
 							.parent = sf.parent,
 							.local = sf.local * glm::rotate(glm::mat4(1), glm::radians(d), axis),
 							.levels = sf.levels - 1,
-							.n = std::max(sf.n * 2 / 3, 3),
-							.scale = sf.scale * scaleFactor,
+							.n = std::max(sf.n * 2 / 3, 1),
+							.scale = scaleTemp,
+							//.scale = sf.scale * scaleFactor,
 							.deltaX = sf.deltaX / 2,
-							.deltaZ = -sf.deltaZ / 2,
+							.deltaZ = sf.deltaZ / 2,
 							.stride = sf.stride / 2
 						};
 						stack.push_back(s);
 					}
 
-					if (sf.levels < 2)
+					if (sf.levels < 2 || sf.n <= 1)
 					{
 						m_leafInstances.push_back(sf.local);
 					}
@@ -422,13 +437,6 @@ public:
 			}
 
 		}
-
-		//std::cout << "vertex count: " << (m_layerCount * m_layerShape.size()) << "\n";
-
-		//for (int i{}; i < perLevel.size(); ++i)
-		//{
-		//	std::cout << i << " : " << perLevel[i] << "\n";
-		//}
 	}
 
 	Mesh getMesh()

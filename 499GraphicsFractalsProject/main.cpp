@@ -62,7 +62,7 @@ TODO:
 - Multiple trees *
 - Fix sizes
 - add apple picking
-
+- adjust branch taper
 BackBurner:
 - make tree generation thread safe
 - do heavy stuff on a background thread
@@ -288,9 +288,9 @@ void initialize()
 	camera.reComputeView();
 	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
 
-	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(baseShader).value());
+	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(plantShader).value());
 
-	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 2, 30.5, 1.f);
+	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5);
 	//trees->setUpTree(glm::mat4(1), 2, 2, 30.5,1.f);
 	trees->initialize();
 	leafMesh.initialize();
@@ -298,8 +298,8 @@ void initialize()
 	plant.initializeNoise();
 	plant.bindNoise("noiseTexture", 2, shaderManager.getShader(plantShader).value());
 
-	trees->setCount(6);
-	trees->setSpacing(20);
+	trees->setCount(10);
+	trees->setSpacing(10);
 	trees->setPosJitter(10.f);
 	trees->setRotJitter(0.9f);
 	trees->reloadTreeInstances();
@@ -346,8 +346,6 @@ void generatePlants()
 	plant.makeFractal(7, 7, 18);
 	flower.makeFractal(7, 4, 18);
 
-	//plant.arrangePlants(50, 50, 0.25);
-	//flower.arrangePlants(20, 20, 0.6);
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
 	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);

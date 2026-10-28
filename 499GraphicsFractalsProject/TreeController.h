@@ -78,7 +78,7 @@ public:
 
 	void reloadTreeInstances()
 	{
-		const size_t maxLeafInstances = 3000;
+		const size_t maxLeafInstances = 8000;
 		size_t projectedLeafCount = leafInstancesCached.size() * m_treeInstanceSettings.count;
 
 		size_t leafStride = 1;
@@ -134,12 +134,12 @@ public:
 		worldTransform = t;
 	}
 
-	void setUpTree(const glm::mat4& local, int levels, int n = 10, float deltaX = 30.5f, float stride = 1.5f)
+	void setUpTree(const glm::mat4& local, int levels, int n = 15, float deltaX = 180.5f, float stride = 5.5f)
 	{
 		localTransform = local;
 		tree.addInstance(worldTransform);
 		TreeGenerator t{ 1,8 };
-		t.generateExampleTree(local, levels, 10, { 2,2,2 }, deltaX, .5f, stride, 5.0f, 0.5f);
+		t.generateExampleTree(local, levels, 8, { 2,2,2 }, deltaX, 20.5f, stride, 5.0f, 0.5f);
 		//t.generateTreeWithNoise(local, 10, 5, 1);
 		leafInstancesCached = t.getLeafInstances();
 		tree.changeMesh(t.getMesh());
