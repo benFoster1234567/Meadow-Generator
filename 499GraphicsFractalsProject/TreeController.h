@@ -139,7 +139,7 @@ public:
 		localTransform = local;
 		tree.addInstance(worldTransform);
 		TreeGenerator t{ 1,8 };
-		t.generateExampleTree(local, levels, 10, { 1,1,1 }, deltaX, 10.5f, stride, 5.0f, 30);
+		t.generateExampleTree(local, levels, 10, { 2,2,2 }, deltaX, .5f, stride, 5.0f, 0.5f);
 		//t.generateTreeWithNoise(local, 10, 5, 1);
 		leafInstancesCached = t.getLeafInstances();
 		tree.changeMesh(t.getMesh());
@@ -209,7 +209,7 @@ public:
 		{
 			lock->useShader();
 			lock->setMat4("model", worldTransform);
-			lock->setMat3("texture", glm::mat3(10));
+			lock->setMat3("texture", glm::mat3(0.5f));
 			lock->setMaterial(treeMat);
 			tree.draw();
 		}
@@ -218,7 +218,7 @@ public:
 		{
 			lock->useShader();
 			lock->setMat4("model", worldTransform);
-			lock->setMat3("texture", glm::mat3(10));
+			lock->setMat3("texture", glm::mat3(.5f));
 			lock->setMaterial(leafMat);
 			leaves.draw();
 		}

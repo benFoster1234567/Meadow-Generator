@@ -1,5 +1,5 @@
 #define ENSURE_GPU_RENDERED
-#define LOG_DEBUG_INFO
+//#define LOG_DEBUG_INFO
 
 #ifdef _WIN32
 #ifdef ENSURE_GPU_RENDERED
@@ -9,6 +9,7 @@ extern "C" {
 	__declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;// Optimus: force switch to discrete GPU
 	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;//AMD
 }
+
 #endif
 #endif
 
@@ -89,8 +90,8 @@ int main(int argc, char** argv)
 	}
 
 	DebugHandler::setUpOpenGL();
-	DebugHandler::instance().setTypeRecord(DebugMsgType::GLStatus, false);
-	DebugHandler::instance().setTypeRecord(DebugMsgType::Default, false);
+	DebugHandler::instance().setTypeRecord(DebugMsgType::GLStatus, true);
+	DebugHandler::instance().setTypeRecord(DebugMsgType::Default, true);
 
 	ilInit();
 
@@ -108,7 +109,7 @@ int main(int argc, char** argv)
 	auto* text = static_cast<Text*>(ui.addElement(std::make_unique<Text>("")));
 	auto* slider = ui.addElement(std::make_unique<SliderFloat>(&cameraSpeed, "Camera Orbit Speed", 0.f, 20.f));
 	auto* sliderLevels = ui.addElement(std::make_unique<SliderInt>(&levels, "Level", 0, 15));
-	auto* sliderLeafStride = ui.addElement(std::make_unique<SliderInt>(&leafStride, "Leaf Stride", 0, 10));
+	//auto* sliderLeafStride = ui.addElement(std::make_unique<SliderInt>(&leafStride, "Leaf Stride", 0, 10));
 	sliderLevels->setVisibility(false);
 	slider->setVisibility(false);
 	text->setVisibility(true);
@@ -286,9 +287,10 @@ void initialize()
 	camera.onWindowResize(static_cast<float>(1000), static_cast<float>(700));
 	camera.reComputeView();
 	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
+
 	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(baseShader).value());
 
-	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.18f,0.18f,0.18f)), 5, 2, 30.5,1.f);
+	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 2, 30.5, 1.f);
 	//trees->setUpTree(glm::mat4(1), 2, 2, 30.5,1.f);
 	trees->initialize();
 	leafMesh.initialize();
@@ -342,10 +344,10 @@ void generatePlants()
 	auto now = std::chrono::steady_clock::now();
 
 	plant.makeFractal(7, 7, 18);
-	//flower.makeFractal(7, 4, 18);
+	flower.makeFractal(7, 4, 18);
 
-	plant.arrangePlants(50, 50, 0.25);
-	flower.arrangePlants(20, 20, 0.6);
+	//plant.arrangePlants(50, 50, 0.25);
+	//flower.arrangePlants(20, 20, 0.6);
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
 	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
@@ -382,11 +384,11 @@ void display(Window& window, float deltaTime)
 	camera.setUniformPos("viewPosition", shaderManager.getShader(plantShader).value());
 	camera.setUniformView("view", shaderManager.getShader(plantShader).value());
 
-	plant.updateNoiseTexture();
+	//Sidebar: add SIMD support for this? - OpenMP?
 
+	Plant::updateNoiseTexture();
 	plant.draw();
 	flower.draw();
-
 	trees->draw();
 	//trees->tick(deltaTime);
 }

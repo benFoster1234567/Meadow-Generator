@@ -41,7 +41,7 @@ struct ModelComponent
 
 class Plant
 {
-	static constexpr size_t NOISE_SIZE = 64;
+	static constexpr size_t NOISE_SIZE = 32;
 
 	bool m_initialized{ false };
 	bool m_instancesChanged{ false };

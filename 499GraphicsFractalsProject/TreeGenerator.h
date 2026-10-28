@@ -57,7 +57,7 @@ private:
 			const glm::vec3 pos = glm::vec3(transform * glm::vec4(px + offset.x, 0.f, pz + offset.y, 1.f));
 			const glm::vec3 norm = glm::normalize(normalMatrix * glm::vec3(-m_layerNorms[i].x, 0.f, -m_layerNorms[i].y));
 
-			float u = static_cast<float>(j) / static_cast<float>(shapeCount);
+			float u = 1 - (static_cast<float>(j) / static_cast<float>(shapeCount));
 			m_data.push_back({ pos, norm, { u, v } });
 		}
 	}
