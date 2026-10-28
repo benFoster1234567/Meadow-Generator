@@ -70,12 +70,14 @@ BackBurner:
 */
 std::atomic<bool> isInitialized{ false };
 int levels = 5;
-
+float deltaX{}, stride{};
 GLuint loadTexture(const char* fileName);
 void initialize();
 void setupScene();
 void generatePlants();
 void display(Window& window, float deltaTime);
+void setUpTreeControls(ImGuiUi& ui);
+
 
 int main(int argc, char** argv)
 {
@@ -102,15 +104,21 @@ int main(int argc, char** argv)
 
 	int number = 0;
 	ImGuiUi ui;
+
 	ui.setup(window);
+
+	setUpTreeControls(ui);
 
 	int leafStride = 0;
 
+	//UI setup
+
 	auto* text = static_cast<Text*>(ui.addElement(std::make_unique<Text>("")));
-	auto* slider = ui.addElement(std::make_unique<SliderFloat>(&cameraSpeed, "Camera Orbit Speed", 0.f, 20.f));
-	auto* sliderLevels = ui.addElement(std::make_unique<SliderInt>(&levels, "Level", 0, 15));
+
+	auto* slider = ui.addElement(std::make_unique<SliderFloat>(cameraSpeed, "Camera Orbit Speed", 0.f, 20.f, std::function([](float speed) { cameraSpeed = speed; })));
+
 	//auto* sliderLeafStride = ui.addElement(std::make_unique<SliderInt>(&leafStride, "Leaf Stride", 0, 10));
-	sliderLevels->setVisibility(false);
+	//sliderLevels->setVisibility(false);
 	slider->setVisibility(false);
 	text->setVisibility(true);
 
@@ -182,7 +190,7 @@ int main(int argc, char** argv)
 				std::cout << "joined\n";
 				text->setVisibility(false);
 				slider->setVisibility(true);
-				sliderLevels->setVisibility(true);
+				//sliderLevels->setVisibility(true);
 				plant.initialize();
 				flower.initialize();
 			}
@@ -194,14 +202,45 @@ int main(int argc, char** argv)
 		window.pollEvents();
 		window.swapBuffers();
 
-		if (levels != levelsTemp) trees->changeLevels(levels);
-		if (leafStride != leafStrideTemp) trees->changeLeafStride(leafStride);
+		//if (levels != levelsTemp) trees->changeLevels(levels);
+		//if (leafStride != leafStrideTemp) trees->changeLeafStride(leafStride);
 	}
 	if (setupThread.joinable())
 	{
 		setupThread.join();
 	}
 	return 0;
+}
+
+void setUpTreeControls(ImGuiUi& ui)
+{
+	auto* sliderDeltaX = ui.addElement(std::make_unique<SliderFloat>(trees->getDeltaX(), "deltaX", 0.f, 100.f, std::function{
+		[](float dx)
+		{
+			trees->setDeltaX(dx);
+			trees->refreshTree();
+		} }));
+
+	auto* sliderStride = ui.addElement(std::make_unique<SliderFloat>(trees->getStride(), "Fractal Stride", 0.f, 5.f,
+		[](float s)
+		{
+			trees->setStride(s);
+			trees->refreshTree();
+		}));
+
+	auto* sliderLevels = ui.addElement(std::make_unique<SliderInt>(trees->getLevels(), "Level", 0, 15,
+		[](int l)
+		{
+			trees->setLevels(levels);
+			trees->refreshTree();
+		}));
+
+	auto* sliderN = ui.addElement(std::make_unique<SliderInt>(trees->getN(), "N", 0, 15,
+		[](int n)
+		{
+			trees->setN(n);
+			trees->refreshTree();
+		}));
 }
 
 GLuint loadTexture(const char* fileName)
@@ -290,7 +329,7 @@ void initialize()
 
 	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(baseShader).value());
 
-	trees->setUpTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 2, 30.5, 1.f);
+	trees->refreshTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 2, 30.5, 1.f);
 	//trees->setUpTree(glm::mat4(1), 2, 2, 30.5,1.f);
 	trees->initialize();
 	leafMesh.initialize();
@@ -305,7 +344,6 @@ void initialize()
 	trees->reloadTreeInstances();
 
 }
-
 
 void setupScene()
 {

@@ -7,9 +7,11 @@
 
 #define GL_SILENCE_DEPRECATION
 
-struct ImGuiElementBase
+class ImGuiElementBase
 {
-	bool m_isVisible = true;
+public:
+	virtual ~ImGuiElementBase() = default;
+
 	virtual void render() = 0;
 	virtual bool visible() const
 	{
@@ -19,13 +21,13 @@ struct ImGuiElementBase
 	{
 		m_isVisible = v;
 	}
+protected:
+	bool m_isVisible = true;
 };
 
-struct Button : public ImGuiElementBase
+class Button : public ImGuiElementBase
 {
-	std::string m_label{ "" };
-	std::function<void()> m_func{};
-
+public:
 	Button(std::string_view label, std::function<void()> func)
 		: m_label(label), m_func(func)
 	{
@@ -39,47 +41,80 @@ struct Button : public ImGuiElementBase
 		}
 	}
 
+protected:
+	std::string m_label{ "" };
+	std::function<void()> m_func{};
+
 };
 
-
-class SliderInt : public ImGuiElementBase
+template<class T>
+class SliderBase : public ImGuiElementBase
 {
-	std::string m_label{ "int slider" };
-	int m_min{ 0 };
-	int m_max{ 1 };
-	int* m_value{ nullptr };
+public:
+	static_assert(std::is_arithmetic_v<T>, "Template type T must be a number!");
+
+	SliderBase(T value, std::string_view label, const T& min, const T& max, const std::function<void(T)>& onEvent)
+		: m_label{ label }, m_value{ value }, m_min{ min }, m_max{ max }, m_onEvent{ onEvent }
+	{
+	}
+	virtual ~SliderBase() = default;
+
+	void setEvent(const std::function<void(T)>& onChange)
+	{
+		m_onEvent = onChange;
+	}
+
+protected:
+	std::string_view m_label;
+
+	std::function<void(T)> m_onEvent{};
+	T m_min{ static_cast<T>(0) };
+	T m_max{ static_cast<T>(1) };
+	T m_value{};
+	T m_valueCached{};
+
+	friend class ImGuiUi;
+
+	void onTick()
+	{
+		if (m_value == m_valueCached) return;
+		m_valueCached = m_value;
+		if (m_onEvent) m_onEvent(m_value);
+	}
+
+};
+
+class SliderInt : public SliderBase<int>
+{
 
 public:
-	SliderInt(int* value, std::string_view label, int min, int max)
-		: m_label(label), m_min(min), m_max(max), m_value{ value }
+	SliderInt(int value, std::string_view label, int min, int max, const std::function<void(int)>& onEvent)
+		: SliderBase(value, label, min, max, onEvent)
 	{
 	}
 
 	void render() override
 	{
 		int i{};
-		ImGui::SliderInt(m_label.c_str(), !m_value ? &i : m_value, m_min, m_max);
+		ImGui::SliderInt(m_label.data(), &m_value, m_min, m_max);
+		onTick();
 	}
-
 };
 
-class SliderFloat : public ImGuiElementBase
+class SliderFloat : public SliderBase<float>
 {
-	std::string m_label{ "float slider" };
-	float m_min{ 0 };
-	float m_max{ 1 };
-	float* m_value{ nullptr };
 
 public:
-	SliderFloat(float* value, std::string_view label, float min, float max)
-		: m_label(label), m_min(min), m_max(max), m_value{ value }
+	SliderFloat(float value, std::string_view label, const float& min, const float& max, const std::function<void(float)>& onEvent)
+		: SliderBase(value, label, min, max, onEvent)
 	{
 	}
 
 	void render() override
 	{
 		float i{};
-		ImGui::SliderFloat(m_label.c_str(), !m_value ? &i : m_value, m_min, m_max, "%.3f");
+		ImGui::SliderFloat(m_label.data(), &m_value, m_min, m_max, "%.3f");
+		onTick();
 	}
 
 };
