@@ -15,6 +15,18 @@ class TreeManager
 		float yOffset{ 0.0f };
 	}m_treeInstanceSettings{};
 
+	struct
+	{
+		glm::mat4 local{ 1 };
+		size_t levels{ 10 };
+		size_t n{ 10 };
+		float deltaX{ 30.5f };
+		float deltaZ{ 10.5f };
+		float girth{ 1.f };
+		float stride{ 1.f };
+		float jitter{ 1.f };
+	}m_treeMeshSettings{};
+
 	InstancedMesh leaves;
 	InstancedMesh tree;
 
@@ -50,31 +62,6 @@ public:
 	}
 
 
-	void setCount(size_t count)
-	{
-		m_treeInstanceSettings.count = count;
-	}
-
-	void setPosJitter(float jitter)
-	{
-		m_treeInstanceSettings.posJitter = jitter;
-	}
-
-	void setSpacing(float spacing)
-	{
-		m_treeInstanceSettings.spacing = spacing;
-	}
-
-	void setRotJitter(float jitter)
-	{
-		m_treeInstanceSettings.rotYJitter = jitter;
-	}
-
-	//todo: keep this out of instance matrix. Just use regular transform matrix for it...
-	void setyOffset(float h)
-	{
-		m_treeInstanceSettings.yOffset = h;
-	}
 
 	void reloadTreeInstances()
 	{
@@ -123,24 +110,28 @@ public:
 
 	}
 
-	void setShaders(std::weak_ptr<Shader> treeShader, std::weak_ptr<Shader> leafShader)
-	{
-		m_treeShader = treeShader;
-		m_leafShader = leafShader;
-	}
 
-	void setTransform(const glm::mat4& t)
-	{
-		worldTransform = t;
-	}
 
-	void setUpTree(const glm::mat4& local, int levels, int n = 15, float deltaX = 180.5f, float stride = 5.5f)
+	void refreshTree()
 	{
-		localTransform = local;
+		constexpr float textureHeight = 0.5f;
+
 		tree.addInstance(worldTransform);
 		TreeGenerator t{ 1,8 };
-		t.generateExampleTree(local, levels, 8, { 2,2,2 }, deltaX, 20.5f, stride, 5.0f, 0.5f);
+
+		t.generateExampleTree(
+			m_treeMeshSettings.local
+			, m_treeMeshSettings.levels
+			, m_treeMeshSettings.n
+			, { 2,2,2 }
+			, m_treeMeshSettings.deltaX
+			, m_treeMeshSettings.deltaZ
+			, m_treeMeshSettings.stride
+			, m_treeMeshSettings.jitter
+			, textureHeight);
+
 		//t.generateTreeWithNoise(local, 10, 5, 1);
+
 		leafInstancesCached = t.getLeafInstances();
 		tree.changeMesh(t.getMesh());
 
@@ -148,12 +139,65 @@ public:
 		{
 			reloadTreeInstances();
 		}
+
 		else
 		{
 			tree.changeMesh(t.getMesh());
 			leaves.changeInstances(leafInstancesCached);
 		}
 	}
+
+	void refreshTree(const glm::mat4& local, int levels, int n = 10, float deltaX = 30.5f, float deltaZ = 10.5f, float stride = 1.5f, float jitter = 5.f)
+	{
+		m_treeMeshSettings =
+		{
+			.local = local,
+			.levels = static_cast<size_t>(levels),
+			.n = static_cast<size_t>(n),
+			.deltaX = deltaX,
+			.deltaZ = deltaX,
+			.stride = stride,
+			.jitter = jitter
+		};
+
+		refreshTree();
+	}
+
+	void setShaders(std::weak_ptr<Shader> treeShader, std::weak_ptr<Shader> leafShader)
+	{
+		m_treeShader = treeShader;
+		m_leafShader = leafShader;
+	}
+
+
+
+	void setTransform(const glm::mat4& t) { worldTransform = t; }
+	void setLocalTransform(const glm::mat4& t) { m_treeMeshSettings.local = t; }
+	void setCount(size_t count) { m_treeInstanceSettings.count = count; }
+	void setPosJitter(float jitter) { m_treeInstanceSettings.posJitter = jitter; }
+	void setSpacing(float spacing) { m_treeInstanceSettings.spacing = spacing; }
+	void setRotJitter(float jitter) { m_treeInstanceSettings.rotYJitter = jitter; }
+	void setYOffset(float h) { m_treeInstanceSettings.yOffset = h; }
+	void setDeltaX(const float& deltaX) { m_treeMeshSettings.deltaX = deltaX; }
+	void setDeltaZ(const float& deltaZ) { m_treeMeshSettings.deltaZ = deltaZ; }
+	void setGirth(const float& girth) { m_treeMeshSettings.girth = girth; }
+	void setStride(const float& stride) { m_treeMeshSettings.stride = stride; }
+	void setJitter(const float& jitter) { m_treeMeshSettings.jitter = jitter; }
+	void setLevels(const size_t& levels) { m_treeMeshSettings.levels = levels; }
+	void setN(const size_t& n) { m_treeMeshSettings.n = n; }
+
+	size_t getLevels() const { return m_treeMeshSettings.levels; }
+	size_t getN() const { return m_treeMeshSettings.n; }
+	size_t getCount() const { return m_treeInstanceSettings.count; }
+	float getDeltaX() const { return m_treeMeshSettings.deltaX; }
+	float getDeltaZ() const { return m_treeMeshSettings.deltaZ; }
+	float getGirth() const { return m_treeMeshSettings.girth; }
+	float getStride() const { return m_treeMeshSettings.stride; }
+	float getJitter() const { return m_treeMeshSettings.jitter; }
+	float getPosJitter() const { return m_treeInstanceSettings.posJitter; }
+	float getSpacing() const { return m_treeInstanceSettings.spacing; }
+	float getRotJitter() const { return m_treeInstanceSettings.rotYJitter; }
+	float getYOffset() const { return m_treeInstanceSettings.yOffset; }
 
 	void initialize()
 	{
@@ -167,11 +211,6 @@ public:
 		{
 			leaves.initialize();
 		}
-	}
-
-	void changeLevels(const int& levels)
-	{
-		setUpTree(localTransform, levels);
 	}
 
 	void changeLeafStride(const int& stride)
