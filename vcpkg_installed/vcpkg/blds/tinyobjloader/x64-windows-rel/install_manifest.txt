@@ -1,8 +1,0 @@
-C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed/vcpkg/pkgs/tinyobjloader_x64-windows/lib/tinyobjloader.lib
-C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed/vcpkg/pkgs/tinyobjloader_x64-windows/lib/tinyobjloader/cmake/tinyobjloader-targets.cmake
-C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed/vcpkg/pkgs/tinyobjloader_x64-windows/lib/tinyobjloader/cmake/tinyobjloader-targets-release.cmake
-C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed/vcpkg/pkgs/tinyobjloader_x64-windows/include/tiny_obj_loader.h
-C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed/vcpkg/pkgs/tinyobjloader_x64-windows/share/tinyobjloader/LICENSE
-C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed/vcpkg/pkgs/tinyobjloader_x64-windows/lib/tinyobjloader/cmake/tinyobjloader-config.cmake
-C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed/vcpkg/pkgs/tinyobjloader_x64-windows/lib/tinyobjloader/cmake/tinyobjloader-config-version.cmake
-C:/Users/flami/source/repos/499GraphicsFractalsProject/vcpkg_installed/vcpkg/pkgs/tinyobjloader_x64-windows/lib/pkgconfig/tinyobjloader.pc

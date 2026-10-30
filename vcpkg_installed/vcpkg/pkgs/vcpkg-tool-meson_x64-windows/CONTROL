@@ -1,8 +1,0 @@
-Package: vcpkg-tool-meson
-Version: 1.9.0
-Port-Version: 10
-Depends: vcpkg-cmake-get-vars
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 52b0f663bc8e9afdc3671f78966c62d47066622d1ef4012f782e3006e884280a
-Description: Meson build system
