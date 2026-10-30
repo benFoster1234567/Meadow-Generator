@@ -7,13 +7,9 @@
 #include <GL/glew.h>
 
 #ifdef LOG_DEBUG_INFO
-
 #define DBG_LOG(type, msg) DebugHandler::instance().log(type, msg)
-
 #else
-
 #define DBG_LOG(type, msg) ((void)0)
-
 #endif
 
 enum class DebugMsgType : uint8_t

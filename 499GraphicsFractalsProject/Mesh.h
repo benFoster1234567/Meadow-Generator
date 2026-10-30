@@ -35,6 +35,7 @@ struct VertexData
 struct Cube {};
 struct Sphere {};
 struct Plane {};
+struct Leaf {};
 
 class Mesh
 {
@@ -173,6 +174,54 @@ private:
 	}
 
 
+	//TODO: simplify
+	void generateLeafMesh(float size, int res = 7)
+	{
+		if (m_modelLoaded)
+		{
+			return;
+		}
+
+		m_data.reserve(m_data.size() + res + 1);
+		m_indices.reserve(m_indices.size() + (res * 3));
+
+		unsigned int startVertexIndex = static_cast<unsigned int>(m_data.size());
+
+		m_data.push_back(VertexData(
+			glm::vec3{ size, 0.f, 0.f },
+			glm::vec3{ 0.f, 1.0f, 0.f },
+			glm::vec2{ 0.5f, 0.5f }
+		));
+
+		float theta = glm::pi<float>() * 2.0f / static_cast<float>(res);
+		for (int i{}; i < res; ++i)
+		{
+			float angle = theta * static_cast<float>(i);
+			float u = glm::cos(angle);
+			float v = glm::sin(angle);
+
+			m_data.push_back(VertexData(
+				glm::vec3{ size + size * u, 0.f, size * v },
+				glm::vec3{ 0.f, 1.0f, 0.f },
+				glm::vec2{ u, v }
+			));
+		}
+
+		for (int i{ 1 }; i <= res; ++i)
+		{
+			unsigned int centerIdx = startVertexIndex;
+			unsigned int currentIdx = startVertexIndex + i;
+			unsigned int nextIdx = (i == res) ? (startVertexIndex + 1) : (startVertexIndex + i + 1);
+
+			m_indices.push_back(centerIdx);
+			m_indices.push_back(currentIdx);
+			m_indices.push_back(nextIdx);
+		}
+
+		m_modelLoaded = true;
+	}
+
+
 public:
 	Mesh() = default;
 
@@ -182,14 +231,19 @@ public:
 		//unitize();
 	}
 
-	Mesh(Cube, float side)
+	explicit Mesh(Cube, float side)
 	{
 		loadCubeModel(side);
 	}
 
-	Mesh(Plane, float size)
+	explicit Mesh(Plane, float size)
 	{
 		loadPlaneModel(size);
+	}
+
+	explicit Mesh(Leaf, float size = 0.5f)
+	{
+		generateLeafMesh(size);
 	}
 
 	static glm::mat4 unitize(const std::vector<std::reference_wrapper<Mesh>>& meshes)

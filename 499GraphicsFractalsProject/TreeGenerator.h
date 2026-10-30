@@ -338,6 +338,7 @@ public:
 			float scaleFactor = 0.2f;
 			for (int j{}; j < sf.n; ++j)
 			{
+
 				theta += glm::radians(360.f / static_cast<float>(sf.n));
 
 				glm::mat4 tPivotInvX = glm::translate(glm::mat4(1), glm::vec3(-sf.deltaX, 0, 0));
@@ -354,19 +355,19 @@ public:
 
 				glm::mat4 offsetMat = glm::translate(glm::mat4(1), glm::vec3{ offsetX, 0,offsetY });
 
-				//sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvX * rotX * tPivotX);
-				//sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvZ * rotZ * tPivotZ);
-				sf.local = sf.local * (tPivotInvX * rotX * tPivotX);
-				sf.local = sf.local * (tPivotInvZ * rotZ * tPivotZ);
+				sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvX * rotX * tPivotX);
+				sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvZ * rotZ * tPivotZ);
+
+
 				sf.local = sf.local * offsetMat;
 				// local = local * glm::translate(glm::mat4(1), glm::vec3(0, stride, 0)) * (tPivotInvX * rotX * tPivotX);
 
 				// if (j == sf.n / 2) sf.deltaX = -sf.deltaX;
 
 				float t = static_cast<float>(j + 1) / static_cast<float>(n + 1);
-				
+
 				scaleFactor = 0.2f + 1 / (10 * (2 * t * glm::sqrt(t) + 0.1f));
-				
+
 				constexpr float minGirth = 0.1f;
 
 				glm::vec3 scaleTemp{};
@@ -381,16 +382,16 @@ public:
 
 				//glm::vec3 scaleTemp = glm::vec3(scaleFactor * sf.scale.x, sf.scale.y, scaleFactor * sf.scale.z);
 				int branchCount = sf.levels > levels * 4 / 5 ? 4 : 1;
-				sf.parent = addLayer(sf.parent, sf.local * glm::scale(glm::mat4(1),scaleTemp ), noiseScale, textureHeight);
+				sf.parent = addLayer(sf.parent, sf.local * glm::scale(glm::mat4(1), scaleTemp), noiseScale, textureHeight);
 
 				if (j > sf.n * 2 / 3)
 				{
 					float d = Random::nextFloat(-20.f, 45.f) + 90.f;
-					theta += glm::radians(360.f / static_cast<float>(branchCount ));
+					theta += glm::radians(360.f / static_cast<float>(branchCount));
 
 					glm::vec3 axis = glm::normalize(glm::vec3(Random::nextFloat(), 0, Random::nextFloat()));
 
-					
+
 					for (int i{}; i < 2; i++)
 					{
 						StackFrame s = { .parent = sf.parent, .local = sf.local * glm::rotate(glm::mat4(1), theta * (1 + i), {0,1,0}) * glm::rotate(glm::mat4(1), glm::radians(90.f), glm::vec3(1,0,0)),
@@ -398,7 +399,7 @@ public:
 							.n = std::max(sf.n * 2 / 3, 1),
 							.scale = scaleTemp,
 							//.scale = sf.scale * scaleFactor,
-							.deltaX = sf.deltaX * 2/ 3,
+							.deltaX = sf.deltaX * 2 / 3,
 							.deltaZ = sf.deltaZ * 2 / 3 - 0.1f,
 							.stride = sf.stride / 2
 						};

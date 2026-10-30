@@ -105,7 +105,7 @@ public:
 		tree.changeInstances(treeInstances);
 		leaves.changeInstances(leafInstancesNew);
 
-		std::cout << "leaf instance count: " << leaves.instanceCount() << "\n";
+		//std::cout << "leaf instance count: " << leaves.instanceCount() << "\n";
 
 
 	}

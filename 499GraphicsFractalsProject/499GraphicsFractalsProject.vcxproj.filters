@@ -95,13 +95,13 @@
     <ClInclude Include="Material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="LogBuffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="BufferObjects.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GLDebugMessageHandler.h">
+    <ClInclude Include="GLDebugHandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

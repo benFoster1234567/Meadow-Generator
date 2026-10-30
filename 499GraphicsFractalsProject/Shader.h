@@ -1,5 +1,5 @@
 #pragma once
-#include "GLDebugMessageHandler.h"
+#include "GLDebugHandler.h"
 
 #include "Material.h"
 #include <GL/glew.h>

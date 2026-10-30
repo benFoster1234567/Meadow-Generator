@@ -333,3 +333,13 @@ Abi: 72d1cd956b8b96d8ce7117aa3301b77a50e47e295848d82c4a913887f3335efa
 Description: Tiny but powerful single file wavefront obj loader
 Status: install ok installed
 
+Package: bullet3
+Version: 3.25
+Port-Version: 3
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 5cc977c20ea99933ddd0b84736033d9d7f9fa65610527988aab3f27a7f210977
+Description: Bullet Physics is a professional collision detection, rigid body, and soft body dynamics library
+Status: install ok installed
+

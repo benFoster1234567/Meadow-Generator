@@ -16,7 +16,7 @@ extern "C" {
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#include "GLDebugMessageHandler.h"
+#include "GLDebugHandler.h"
 
 #include "Window.h"
 #include "Mesh.h"
@@ -57,17 +57,20 @@ bool loading = false;
 /*
 
 TODO:
-- Fix tree texturing
-- optimize memory and cpu usage
-- Multiple trees *
-- Fix sizes
+- Fix tree texturing #
+- Add leaf textures
+- optimize memory and cpu usage #
+- Multiple trees ~
+- Fix sizes #
 - add apple picking
-- adjust branch taper
+- adjust branch taper #
+
 BackBurner:
 - make tree generation thread safe
 - do heavy stuff on a background thread
 
 */
+
 std::atomic<bool> isInitialized{ false };
 int levels = 5;
 float deltaX{}, stride{};
@@ -202,8 +205,6 @@ int main(int argc, char** argv)
 		window.pollEvents();
 		window.swapBuffers();
 
-		//if (levels != levelsTemp) trees->changeLevels(levels);
-		//if (leafStride != leafStrideTemp) trees->changeLeafStride(leafStride);
 	}
 	if (setupThread.joinable())
 	{
@@ -214,28 +215,35 @@ int main(int argc, char** argv)
 
 void setUpTreeControls(ImGuiUi& ui)
 {
-	auto* sliderDeltaX = ui.addElement(std::make_unique<SliderFloat>(trees->getDeltaX(), "deltaX", 0.f, 100.f, std::function{
+	ui.addElement(std::make_unique<SliderFloat>(trees->getDeltaX(), "deltaX", 0.f, 100.f, std::function{
 		[](float dx)
 		{
 			trees->setDeltaX(dx);
 			trees->refreshTree();
 		} }));
 
-	auto* sliderStride = ui.addElement(std::make_unique<SliderFloat>(trees->getStride(), "Fractal Stride", 0.f, 5.f,
+	ui.addElement(std::make_unique<SliderFloat>(trees->getDeltaZ(), "deltaZ", 0.f, 100.f, std::function{
+		[](float dz)
+		{
+			trees->setDeltaZ(dz);
+			trees->refreshTree();
+		} }));
+
+	ui.addElement(std::make_unique<SliderFloat>(trees->getStride(), "Fractal Stride", 0.f, 5.f,
 		[](float s)
 		{
 			trees->setStride(s);
 			trees->refreshTree();
 		}));
 
-	auto* sliderLevels = ui.addElement(std::make_unique<SliderInt>(trees->getLevels(), "Level", 0, 15,
+	ui.addElement(std::make_unique<SliderInt>(trees->getLevels(), "Level", 0, 15,
 		[](int l)
 		{
-			trees->setLevels(levels);
+			trees->setLevels(l);
 			trees->refreshTree();
 		}));
 
-	auto* sliderN = ui.addElement(std::make_unique<SliderInt>(trees->getN(), "N", 0, 15,
+	ui.addElement(std::make_unique<SliderInt>(trees->getN(), "N", 0, 15,
 		[](int n)
 		{
 			trees->setN(n);
@@ -327,9 +335,11 @@ void initialize()
 	camera.reComputeView();
 	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
 
-	trees = std::make_unique<TreeManager>(Mesh{ Plane{}, 0.5f }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(plantShader).value());
+	trees = std::make_unique<TreeManager>(Mesh{ Leaf{} }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(plantShader).value());
 
-	trees->refreshTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 2, 30.5, 1.f);
+
+
+	trees->refreshTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
 	//trees->setUpTree(glm::mat4(1), 2, 2, 30.5,1.f);
 	trees->initialize();
 	leafMesh.initialize();
@@ -382,7 +392,7 @@ void generatePlants()
 	auto now = std::chrono::steady_clock::now();
 
 	plant.makeFractal(7, 7, 18);
-	flower.makeFractal(7, 4, 18);
+	flower.makeFractal(7, 5, 18);
 
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);

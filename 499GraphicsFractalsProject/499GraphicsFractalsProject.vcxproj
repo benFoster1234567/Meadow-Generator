@@ -167,12 +167,12 @@
     <ClInclude Include="BufferObjects.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Fractals.h" />
-    <ClInclude Include="GLDebugMessageHandler.h" />
+    <ClInclude Include="GLDebugHandler.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="InstancedMesh.h" />
-    <ClInclude Include="LogBuffer.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Noise.h" />
+    <ClInclude Include="Physics.h" />
     <ClInclude Include="Plane.h" />
     <ClInclude Include="Plant.h" />
     <ClInclude Include="Mesh.h" />
