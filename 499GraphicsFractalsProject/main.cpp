@@ -63,6 +63,7 @@ TODO:
 - Multiple trees ~
 - Fix sizes #
 - add apple picking
+- refactor code to oop design
 - adjust branch taper #
 
 BackBurner:

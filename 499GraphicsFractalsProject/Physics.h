@@ -1,6 +1,6 @@
 #pragma once
 
-#define ENABLE_PHYSICS 0 //physics is a work in progress
+#define ENABLE_PHYSICS 1 //physics is a work in progress
 #if ENABLE_PHYSICS
 
 #include <vector>
@@ -11,6 +11,7 @@
 #include <bullet/btBulletDynamicsCommon.h>
 #include <bullet/btBulletCollisionCommon.h>
 #include "SparseSet.h"
+#include <glm/ext/quaternion_float.hpp>
 
 struct Transform
 {
