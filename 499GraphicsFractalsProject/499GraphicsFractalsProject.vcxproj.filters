@@ -39,6 +39,9 @@
     <None Include="plant.frag">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="leafShader.frag">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="OpenGL.h">
@@ -142,10 +145,5 @@
     <Image Include="flowerPetal.png">
       <Filter>Resource Files</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="Text.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
   </ItemGroup>
 </Project>

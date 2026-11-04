@@ -61,8 +61,6 @@ public:
 	{
 	}
 
-
-
 	void reloadTreeInstances()
 	{
 		const size_t maxLeafInstances = 8000;
@@ -104,10 +102,6 @@ public:
 
 		tree.changeInstances(treeInstances);
 		leaves.changeInstances(leafInstancesNew);
-
-		//std::cout << "leaf instance count: " << leaves.instanceCount() << "\n";
-
-
 	}
 
 
@@ -169,8 +163,6 @@ public:
 		m_leafShader = leafShader;
 	}
 
-
-
 	void setTransform(const glm::mat4& t) { worldTransform = t; }
 	void setLocalTransform(const glm::mat4& t) { m_treeMeshSettings.local = t; }
 	void setCount(size_t count) { m_treeInstanceSettings.count = count; }
@@ -189,6 +181,7 @@ public:
 	size_t getLevels() const { return m_treeMeshSettings.levels; }
 	size_t getN() const { return m_treeMeshSettings.n; }
 	size_t getCount() const { return m_treeInstanceSettings.count; }
+
 	float getDeltaX() const { return m_treeMeshSettings.deltaX; }
 	float getDeltaZ() const { return m_treeMeshSettings.deltaZ; }
 	float getGirth() const { return m_treeMeshSettings.girth; }

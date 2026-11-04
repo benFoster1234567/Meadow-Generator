@@ -350,19 +350,16 @@ public:
 				glm::mat4 rotZ = glm::rotate(glm::mat4(1), radX, { 1,0,0 });
 
 				glm::vec3 position = { sf.local[3] };
+
 				float offsetX = m_noise.compute(glm::vec4(position, 0.f));
 				float offsetY = m_noise.compute(glm::vec4(position, 10.f));
 
 				glm::mat4 offsetMat = glm::translate(glm::mat4(1), glm::vec3{ offsetX, 0,offsetY });
 
-				sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvX * rotX * tPivotX);
-				sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) * (tPivotInvZ * rotZ * tPivotZ);
-
+				sf.local = sf.local  * (tPivotInvX * rotX * tPivotX);
+				sf.local = sf.local  * (tPivotInvZ * rotZ * tPivotZ);
 
 				sf.local = sf.local * offsetMat;
-				// local = local * glm::translate(glm::mat4(1), glm::vec3(0, stride, 0)) * (tPivotInvX * rotX * tPivotX);
-
-				// if (j == sf.n / 2) sf.deltaX = -sf.deltaX;
 
 				float t = static_cast<float>(j + 1) / static_cast<float>(n + 1);
 
@@ -371,6 +368,7 @@ public:
 				constexpr float minGirth = 0.1f;
 
 				glm::vec3 scaleTemp{};
+
 				if (glm::length(sf.scale) < minGirth)
 				{
 					scaleTemp = sf.scale;
@@ -380,7 +378,6 @@ public:
 					scaleTemp = sf.scale * scaleFactor;
 				}
 
-				//glm::vec3 scaleTemp = glm::vec3(scaleFactor * sf.scale.x, sf.scale.y, scaleFactor * sf.scale.z);
 				int branchCount = sf.levels > levels * 4 / 5 ? 4 : 1;
 				sf.parent = addLayer(sf.parent, sf.local * glm::scale(glm::mat4(1), scaleTemp), noiseScale, textureHeight);
 
@@ -391,14 +388,12 @@ public:
 
 					glm::vec3 axis = glm::normalize(glm::vec3(Random::nextFloat(), 0, Random::nextFloat()));
 
-
 					for (int i{}; i < 2; i++)
 					{
 						StackFrame s = { .parent = sf.parent, .local = sf.local * glm::rotate(glm::mat4(1), theta * (1 + i), {0,1,0}) * glm::rotate(glm::mat4(1), glm::radians(90.f), glm::vec3(1,0,0)),
 							.levels = sf.levels - 1,
 							.n = std::max(sf.n * 2 / 3, 1),
 							.scale = scaleTemp,
-							//.scale = sf.scale * scaleFactor,
 							.deltaX = sf.deltaX * 2 / 3,
 							.deltaZ = sf.deltaZ * 2 / 3 - 0.1f,
 							.stride = sf.stride / 2

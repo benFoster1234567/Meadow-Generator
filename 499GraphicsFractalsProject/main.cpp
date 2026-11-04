@@ -40,18 +40,21 @@ Mesh plane(Plane{}, 10.f);
 Camera camera{ 1000,700 };
 ShaderManager shaderManager{};
 
-ShaderManager::ShaderIndex leavesShader, barkShader, plantShader, baseShader;
+ShaderManager::ShaderIndex leavesShader, barkShader, plantShader, baseShader, leafShader;
 
 Plant plant{};
 Plant flower{};
 Plant groundPlane{};
 
+constexpr size_t TreeVar = 3;
 
 float cameraSpeed{ 0.f };
 
 InstancedMesh leafMesh{ Mesh{Plane{}, 0.5f} };
 
-std::unique_ptr<TreeManager> trees{ nullptr };
+std::array<std::unique_ptr<TreeManager>, TreeVar> trees{ nullptr };
+
+
 bool loading = false;
 
 /*
@@ -79,7 +82,7 @@ void initialize();
 void setupScene();
 void generatePlants();
 void display(Window& window, float deltaTime);
-void setUpTreeControls(ImGuiUi& ui);
+void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::vec2 defaultDelta, size_t defaultLevels);
 
 
 int main(int argc, char** argv)
@@ -110,18 +113,14 @@ int main(int argc, char** argv)
 
 	ui.setup(window);
 
-	setUpTreeControls(ui);
+	setUpTreeControls(ui, 10, 1.5f, {70.f,1.5f}, 7);
 
 	int leafStride = 0;
-
-	//UI setup
 
 	auto* text = static_cast<Text*>(ui.addElement(std::make_unique<Text>("")));
 
 	auto* slider = ui.addElement(std::make_unique<SliderFloat>(cameraSpeed, "Camera Orbit Speed", 0.f, 20.f, std::function([](float speed) { cameraSpeed = speed; })));
 
-	//auto* sliderLeafStride = ui.addElement(std::make_unique<SliderInt>(&leafStride, "Leaf Stride", 0, 10));
-	//sliderLevels->setVisibility(false);
 	slider->setVisibility(false);
 	text->setVisibility(true);
 
@@ -193,7 +192,6 @@ int main(int argc, char** argv)
 				std::cout << "joined\n";
 				text->setVisibility(false);
 				slider->setVisibility(true);
-				//sliderLevels->setVisibility(true);
 				plant.initialize();
 				flower.initialize();
 			}
@@ -213,41 +211,56 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-void setUpTreeControls(ImGuiUi& ui)
+void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::vec2 defaultDelta, size_t defaultLevels)
 {
-	ui.addElement(std::make_unique<SliderFloat>(trees->getDeltaX(), "deltaX", 0.f, 100.f, std::function{
+	ui.addElement(std::make_unique<SliderFloat>(defaultDelta.x, "deltaX", 0.f, 100.f, std::function{
 		[](float dx)
 		{
-			trees->setDeltaX(dx);
-			trees->refreshTree();
+			for (auto& tree : trees)
+			{
+				tree->setDeltaX(dx);
+				tree->refreshTree();
+			}
 		} }));
 
-	ui.addElement(std::make_unique<SliderFloat>(trees->getDeltaZ(), "deltaZ", 0.f, 100.f, std::function{
+	ui.addElement(std::make_unique<SliderFloat>(defaultDelta.y, "deltaZ", 0.f, 100.f, std::function{
 		[](float dz)
 		{
-			trees->setDeltaZ(dz);
-			trees->refreshTree();
+			for (auto& tree : trees)
+			{
+				tree->setDeltaZ(dz);
+				tree->refreshTree();
+			}
 		} }));
 
-	ui.addElement(std::make_unique<SliderFloat>(trees->getStride(), "Fractal Stride", 0.f, 5.f,
+	ui.addElement(std::make_unique<SliderFloat>(defaultStride, "Fractal Stride", 0.f, 5.f,
 		[](float s)
 		{
-			trees->setStride(s);
-			trees->refreshTree();
+			for (auto& tree : trees)
+			{
+				tree->setStride(s);
+				tree->refreshTree();
+			}
 		}));
 
-	ui.addElement(std::make_unique<SliderInt>(trees->getLevels(), "Level", 0, 15,
+	ui.addElement(std::make_unique<SliderInt>(defaultLevels, "Level", 0, 15,
 		[](int l)
 		{
-			trees->setLevels(l);
-			trees->refreshTree();
+			for (auto& tree : trees)
+			{
+				tree->setLevels(l);
+				tree->refreshTree();
+			}
 		}));
 
-	ui.addElement(std::make_unique<SliderInt>(trees->getN(), "N", 0, 15,
+	ui.addElement(std::make_unique<SliderInt>(defaultN, "N", 0, 15,
 		[](int n)
 		{
-			trees->setN(n);
-			trees->refreshTree();
+			for (auto& tree : trees)
+			{
+				tree->setN(n);
+				tree->refreshTree();
+			}
 		}));
 }
 
@@ -264,6 +277,7 @@ GLuint loadTexture(const char* fileName)
 		ilDeleteImages(1, &imageID);
 		return 0;
 	}
+
 	ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
 	GLuint tid;
 	glGenTextures(1, &tid);
@@ -285,6 +299,8 @@ void initialize()
 
 	baseShader = shaderManager.addShader("shader.vert", "shader.frag");
 	plantShader = shaderManager.addShader("plant.vert", "plant.frag");
+	leafShader = shaderManager.addShader("plant.vert", "leafShader.frag");
+
 	shaderManager.useShader(baseShader);
 
 	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
@@ -335,25 +351,28 @@ void initialize()
 	camera.reComputeView();
 	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
 
-	trees = std::make_unique<TreeManager>(Mesh{ Leaf{} }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(plantShader).value());
 
+	for (int i = 0; i < TreeVar; ++i)
+	{
+		trees[i] = std::make_unique<TreeManager>(Mesh{ Leaf{} }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(leafShader).value());
+		trees[i]->refreshTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
+		trees[i]->initialize();
+	}
 
-
-	trees->refreshTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
-	//trees->setUpTree(glm::mat4(1), 2, 2, 30.5,1.f);
-	trees->initialize();
 	leafMesh.initialize();
 
-	plant.initializeNoise();
+	Plant::initializeNoise();
 	plant.bindNoise("noiseTexture", 2, shaderManager.getShader(plantShader).value());
-
-	trees->setCount(10);
-	trees->setSpacing(10);
-	trees->setPosJitter(10.f);
-	trees->setRotJitter(0.9f);
-	trees->reloadTreeInstances();
-
+	for (int i = 0; i < TreeVar; ++i)
+	{
+		trees[i]->setCount(10 - i);
+		trees[i]->setSpacing(10 * (i+1) );
+		trees[i]->setPosJitter(10.f);
+		trees[i]->setRotJitter(0.9f);
+		trees[i]->reloadTreeInstances();
+	}
 }
+
 
 void setupScene()
 {
@@ -411,11 +430,10 @@ void display(Window& window, float deltaTime)
 	Plant::tick(deltaTime * 0.5f);
 	angle += cameraSpeed * deltaTime;
 
-	shaderManager.useShader(baseShader);
 	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(angle));
 	camera.reComputeView();
-	camera.setUniformPos("viewPosition", shaderManager.getShader(baseShader).value());
-	camera.setUniformView("view", shaderManager.getShader(baseShader).value());
+	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
+	shaderManager.useShader(baseShader);
 
 	if (auto lock = shaderManager.getShader(baseShader)->lock())
 	{
@@ -435,6 +453,10 @@ void display(Window& window, float deltaTime)
 	Plant::updateNoiseTexture();
 	plant.draw();
 	flower.draw();
-	trees->draw();
-	//trees->tick(deltaTime);
+
+	for (auto& tree : trees)
+	{
+		tree->draw();
+	}
+
 }
