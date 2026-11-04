@@ -164,8 +164,8 @@
     <None Include="shader.vert" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BufferObjects.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Components.h" />
     <ClInclude Include="Fractals.h" />
     <ClInclude Include="GLDebugHandler.h" />
     <ClInclude Include="GpuMesh.h" />
@@ -179,9 +179,11 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="OpenGL.h" />
     <ClInclude Include="Random.h" />
+    <ClInclude Include="RenderedObject.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderManager.h" />
     <ClInclude Include="SparseSet.h" />
+    <ClInclude Include="Transform.h" />
     <ClInclude Include="TreeController.h" />
     <ClInclude Include="TreeGenerator.h" />
     <ClInclude Include="UI.h" />

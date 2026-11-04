@@ -12,22 +12,20 @@ class GpuMesh
 protected:
 
 	virtual void initializeAdditionalAttributes() {}
-	virtual void releaseAdditionalAttributes() {}
 
 	void release()
 	{
 		if (m_vbo) glDeleteBuffers(1, &m_vbo);
 		if (m_ebo) glDeleteBuffers(1, &m_ebo);
 		if (m_vao) glDeleteVertexArrays(1, &m_vao);
-		releaseAdditionalAttributes();
 		m_vbo = m_ebo = m_vao = 0;
+		m_initialized = false;
 	}
 
 	GLuint m_vao{};
 	GLuint m_vbo{};
 	GLuint m_ebo{};
 
-	bool m_dirty = false;
 	bool m_initialized = false;
 
 public:
@@ -43,7 +41,7 @@ public:
 		: m_mesh(std::move(mesh)) {
 	}
 
-	~GpuMesh() { release(); }
+	virtual~GpuMesh() { release(); }
 
 	GpuMesh(const GpuMesh&) = delete;
 	GpuMesh& operator=(const GpuMesh&) = delete;
@@ -53,8 +51,7 @@ public:
 		m_vao(std::exchange(other.m_vao, 0)),
 		m_vbo(std::exchange(other.m_vbo, 0)),
 		m_ebo(std::exchange(other.m_ebo, 0)),
-		m_initialized(other.m_initialized),
-		m_dirty(other.m_dirty),
+		m_initialized(std::exchange(other.m_initialized, false)),
 		m_mesh(std::move(other.m_mesh))
 	{
 	}
@@ -67,6 +64,7 @@ public:
 			m_vao = std::exchange(other.m_vao, 0);
 			m_vbo = std::exchange(other.m_vbo, 0);
 			m_ebo = std::exchange(other.m_ebo, 0);
+			m_initialized = std::exchange(other.m_initialized, false);
 			m_mesh = std::move(other.m_mesh);
 		}
 		return *this;
@@ -98,8 +96,12 @@ public:
 		initializeAdditionalAttributes();
 
 		m_initialized = true;
-		m_dirty = false;
 		glBindVertexArray(0);
+	}
+
+	bool isInitialized() const
+	{
+		return m_initialized;
 	}
 
 	void changeMesh(Mesh mesh)

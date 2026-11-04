@@ -5,7 +5,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <vector>
 #include <ranges>
-
+#include "GpuMesh.h"
 
 struct InstanceData
 {
@@ -14,21 +14,21 @@ struct InstanceData
 	glm::vec3 scale{};
 	glm::vec4 color{};
 };
-
-class InstancedMesh
+//TODO: Fix this
+class InstancedMesh : public GpuMesh
 {
 private:
-	void release()
-	{
-		if (m_vbo) glDeleteBuffers(1, &m_vbo);
-		if (m_ebo) glDeleteBuffers(1, &m_ebo);
-		if (m_ibo) glDeleteBuffers(1, &m_ibo);
-		if (m_vao) glDeleteVertexArrays(1, &m_vao);
-		m_vao = m_vbo = m_ebo = m_ibo = 0;
-	}
-	std::vector<glm::mat4> instanceData{};
+	std::vector<glm::mat4> m_instances{};
 
-	glm::mat4 packInstance(const InstanceData& instance)
+	void releaseInstanceBuffer()
+	{
+		if (m_ibo) glDeleteBuffers(1, &m_ibo);
+		m_ibo = 0;
+		m_capacity = 0;
+		m_drawCount = 0;
+	}
+
+	static glm::mat4 packInstance(const InstanceData& instance)
 	{
 		glm::mat4 pos = glm::translate(glm::mat4(1), instance.position);
 		glm::mat4 rot = glm::toMat4(glm::quat(instance.rotationEuler));
@@ -44,52 +44,41 @@ private:
 		return transform;
 	}
 
-	GLuint m_vao{};
-	GLuint m_vbo{};
-	GLuint m_ebo{};
+	static std::vector<glm::mat4> packAll(const std::vector<InstanceData>& src)
+	{
+		std::vector<glm::mat4> result;
+		result.reserve(src.size());
+		for (const auto& i : src) result.push_back(packInstance(i));
+		return result;
+	}
+
 	GLuint m_ibo{};
-
-	bool m_dirty = false;
-	bool m_initialized = false;
-
+	size_t m_capacity = 0;
+	size_t m_drawCount = 0;
 public:
-
-	Mesh m_mesh{};
 	InstancedMesh() = default;
 
-	explicit InstancedMesh(const Mesh& mesh)
-		: m_mesh(mesh) {
+	explicit InstancedMesh(Mesh mesh)
+		: GpuMesh(std::move(mesh)) {
 	}
 
-	explicit InstancedMesh(Mesh&& mesh)
-		: m_mesh(std::move(mesh)) {
+	InstancedMesh(Mesh mesh, std::vector<glm::mat4> instances)
+		: GpuMesh(std::move(mesh)), m_instances(std::move(instances)) {
 	}
 
-	InstancedMesh(const Mesh& mesh, std::vector<glm::mat4> instances)
-		: m_mesh(mesh), instanceData(std::move(instances)) {
+	InstancedMesh(Mesh mesh, const std::vector<InstanceData>& instances)
+		: GpuMesh(std::move(mesh)), m_instances(packAll(instances)) {
 	}
 
-	InstancedMesh(const Mesh& mesh, const std::vector<InstanceData>& instances)
-		: m_mesh(mesh)
-	{
-		instanceData.reserve(instances.size());
-		for (const auto& inst : instances)
-			instanceData.push_back(packInstance(inst));
-	}
-
-	~InstancedMesh() { release(); }
 
 	InstancedMesh(const InstancedMesh&) = delete;
 	InstancedMesh& operator=(const InstancedMesh&) = delete;
 
 	InstancedMesh(InstancedMesh&& other) noexcept
 		:
-		m_vao(std::exchange(other.m_vao, 0)),
-		m_vbo(std::exchange(other.m_vbo, 0)),
-		m_ebo(std::exchange(other.m_ebo, 0)),
+		GpuMesh(std::move(other)),
 		m_ibo(std::exchange(other.m_ibo, 0)),
-		m_mesh(std::move(other.m_mesh)),
-		instanceData(std::move(other.instanceData)) {
+		m_instances(std::move(other.m_instances)) {
 	}
 
 	InstancedMesh& operator=(InstancedMesh&& other) noexcept
@@ -102,19 +91,21 @@ public:
 			m_ebo = std::exchange(other.m_ebo, 0);
 			m_ibo = std::exchange(other.m_ibo, 0);
 			m_mesh = std::move(other.m_mesh);
-			instanceData = std::move(other.instanceData);
+			m_instances = std::move(other.m_instances);
 		}
 		return *this;
 	}
 
+	~InstancedMesh() override { releaseInstanceBuffer(); }
+
 	void addInstance(const InstanceData& data)
 	{
-		instanceData.push_back(packInstance(data));
+		m_instances.push_back(packInstance(data));
 	}
 
 	void addInstance(const glm::mat4& data)
 	{
-		instanceData.push_back(data);
+		m_instances.push_back(data);
 	}
 
 	void changeInstancesTemp(const std::vector<glm::mat4>& newInstances)
@@ -132,42 +123,23 @@ public:
 
 	size_t instanceCount()
 	{
-		return instanceData.size();
+		return m_instances.size();
 	}
 
 	void changeInstances(const std::vector<glm::mat4>& newInstances)
 	{
-		instanceData = newInstances;
-		changeInstancesTemp(instanceData);
+		m_instances = newInstances;
+		changeInstancesTemp(m_instances);
 	}
 
-	void initialize()
+	void initializeAdditionalAttributes() override
 	{
-		glGenVertexArrays(1, &m_vao);
-		glBindVertexArray(m_vao);
-		glGenBuffers(1, &m_vbo);
-		glGenBuffers(1, &m_ebo);
+		releaseInstanceBuffer();
 		glGenBuffers(1, &m_ibo);
-
-		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-		glBufferData(GL_ARRAY_BUFFER, m_mesh.m_data.size() * sizeof(VertexData), m_mesh.m_data.data(), GL_DYNAMIC_DRAW);
-
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)offsetof(VertexData, point));
-		glEnableVertexAttribArray(0);
-
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)offsetof(VertexData, normal));
-		glEnableVertexAttribArray(1);
-
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)offsetof(VertexData, texCoord));
-		glEnableVertexAttribArray(2);
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_mesh.m_indices.size() * sizeof(unsigned int), m_mesh.m_indices.data(), GL_DYNAMIC_DRAW);
-
 		glBindBuffer(GL_ARRAY_BUFFER, m_ibo);
-		glBufferData(GL_ARRAY_BUFFER, instanceData.size() * sizeof(glm::mat4), instanceData.data(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, m_instances.size() * sizeof(glm::mat4), m_instances.data(), GL_DYNAMIC_DRAW);
 
-		for (int i = 0; i < 4; ++i) // puts the whole matrix into the shaders as 4 vec4s
+		for (GLuint i = 0; i < 4; ++i) // puts the whole matrix into the shaders as 4 vec4s
 		{
 			GLuint attribIndex = 3 + i;
 			GLuint stride = sizeof(glm::mat4);
@@ -176,15 +148,11 @@ public:
 			glEnableVertexAttribArray(attribIndex);
 			glVertexAttribDivisor(attribIndex, 1);
 		}
-
-		m_initialized = true;
-		m_dirty = false;
-		glBindVertexArray(0);
 	}
 
-	std::vector<glm::mat4> getInstances()
+	const std::vector<glm::mat4>& getInstances()
 	{
-		return instanceData;
+		return m_instances;
 	}
 
 	void changeInstanceStride(size_t stride)
@@ -193,35 +161,22 @@ public:
 
 		std::vector<glm::mat4> newInst{};
 
-		for (int i{}; i < instanceData.size(); ++i)
+		for (int i{}; i < m_instances.size(); ++i)
 		{
 			if (i % stride == 0)
 			{
-				newInst.push_back(instanceData[i]);
+				newInst.push_back(m_instances[i]);
 			}
 		}
 
 		changeInstancesTemp(newInst);
 	}
 
-	void changeMesh(Mesh mesh)
+	void draw() override
 	{
-		m_mesh = std::move(mesh);
-
-		if (!m_initialized) return;
-
 		glBindVertexArray(m_vao);
-		glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-		glBufferData(GL_ARRAY_BUFFER, m_mesh.m_data.size() * sizeof(VertexData), m_mesh.m_data.data(), GL_DYNAMIC_DRAW);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_mesh.m_indices.size() * sizeof(unsigned int), m_mesh.m_indices.data(), GL_DYNAMIC_DRAW);
+		glDrawElementsInstanced(GL_TRIANGLES, m_mesh.m_indices.size(), GL_UNSIGNED_INT, (void*)0, m_instances.size());
 		glBindVertexArray(0);
-	}
-
-	void draw()
-	{
-		glBindVertexArray(m_vao);
-		glDrawElementsInstanced(GL_TRIANGLES, m_mesh.m_indices.size(), GL_UNSIGNED_INT, (void*)0, instanceData.size());
 	}
 
 
