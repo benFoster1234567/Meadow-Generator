@@ -1,23 +1,16 @@
 #pragma once
 
-#define ENABLE_PHYSICS 0 //physics is a work in progress
-#if ENABLE_PHYSICS
-
-#include <vector>
-
 #include <stdexcept>
 
-
+#include <vector>
 #include <bullet/btBulletDynamicsCommon.h>
 #include <bullet/btBulletCollisionCommon.h>
+#include <glm/ext/quaternion_float.hpp>
+
 #include "SparseSet.h"
+#include "Transform.h"
 
-struct Transform
-{
-	btVector3 position{};
-	btQuaternion rotation{};
-};
-
+//-----------------------------------------------------------------
 //helpers
 static btVector3 glmToBt(const glm::vec3& v)
 {
@@ -44,28 +37,37 @@ static glm::vec3 extractVec3FromMat(const glm::mat4& m)
 	return { m[3][0], m[3][1], m[3][2] };
 }
 
+
+//-----------------------------------------------------------------
 class MotionState : public btMotionState
 {
-public:
-	Transform* m_transform{ nullptr };
+	btVector3 m_position{ 0.f,0.f,0.f };
+	btQuaternion m_rotation{ 0.f,0.f,0.f, 1.f };
 
+public:
 	void getWorldTransform(btTransform& worldTrans) const override
 	{
-		if (!m_transform) return;
-		worldTrans.setOrigin(m_transform->position);
-		worldTrans.setRotation(m_transform->rotation);
+		worldTrans.setOrigin(m_position);
+		worldTrans.setRotation(m_rotation);
 	}
 
 	void setWorldTransform(const btTransform& worldTrans)
 	{
-		m_transform->position = worldTrans.getOrigin();
-		m_transform->rotation = worldTrans.getRotation();
+		m_position = worldTrans.getOrigin();
+		m_rotation = worldTrans.getRotation();
 	}
 
+	glm::vec3 getPositionGlm() const { return btToGlm(m_position); }
+	glm::quat getRotationGlm() const { return btToGlm(m_rotation); }
+
+	btVector3 getPositionBt() const { return m_position; }
+	btQuaternion getRotationBt() const { return m_rotation; }
+
+	void setPosition(const glm::vec3& p) { m_position = glmToBt(p); }
+	void setRotation(const glm::quat& r) { m_rotation = glmToBt(r); }
 };
 
-
-
+//-----------------------------------------------------------------
 class BtPhysicsEngine
 {
 public:
@@ -76,16 +78,56 @@ private:
 	btDbvtBroadphase* m_broadPhase{ nullptr };
 	btSequentialImpulseConstraintSolver* m_solver{ nullptr };
 	btDiscreteDynamicsWorld* m_dynamicsWorld{ nullptr };
-	btVehicleRaycaster* m_vehicleRaycaster{ nullptr };
 
 	static constexpr size_t MAX_COMPONENTS = 128;
 	static constexpr size_t MAX_ENTITIES = 1000;
-	SparseSet<btCollisionShape*, MAX_ENTITIES, MAX_ENTITIES> m_collisionShapes{};
-	SparseSet<btRigidBody*, MAX_ENTITIES, MAX_ENTITIES> m_rigidbodies{};
-	SparseSet<btRaycastVehicle*, MAX_ENTITIES, MAX_ENTITIES> m_vehicles{};
-	SparseSet<Transform*, MAX_ENTITIES, MAX_ENTITIES> m_vehicles{};
 
-	RigidBodyID m_nextRBID = 0;
+	SparseSet<btCollisionShape*, MAX_ENTITIES, MAX_ENTITIES>
+		m_collisionShapes{};
+
+	SparseSet<btRigidBody*, MAX_ENTITIES, MAX_ENTITIES>
+		m_rigidbodies{};
+
+	RigidBodyID m_nextRBID = 1;
+
+	RigidBodyID createRigidBody
+	(
+		btCollisionShape* collisionShape
+		, const Transform& transform
+		, float mass
+		, const bool& isKinematic
+		, const bool& isActive
+	)
+	{
+		btVector3 momentOfInertia = { 1.f,1.f,1.f };
+		RigidBodyID rbid = m_nextRBID;
+		m_nextRBID++;
+
+		collisionShape->calculateLocalInertia(mass, momentOfInertia);
+		MotionState* motionState = new MotionState();
+		motionState->setPosition(transform.getPosition());
+		motionState->setRotation(transform.getRotation());
+
+		if (isKinematic)
+		{
+			mass = 0.0f;
+			momentOfInertia = { 0,0,0 };
+		}
+
+		btRigidBody::btRigidBodyConstructionInfo rbInfo{ mass, motionState, collisionShape, momentOfInertia };
+		btRigidBody* rigidBody = new btRigidBody(rbInfo);
+
+		if (isKinematic)
+		{
+			rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+			rigidBody->setActivationState(DISABLE_DEACTIVATION);
+		}
+
+		rigidBody->setActivationState(isActive ? ACTIVE_TAG : DISABLE_SIMULATION);
+
+		m_rigidbodies.insert(rbid, rigidBody);
+		m_dynamicsWorld->addRigidBody(rigidBody);
+	}
 
 	void destroy()
 	{
@@ -125,10 +167,13 @@ private:
 		m_collisionConfiguration = nullptr;
 	}
 
-
+	MotionState* getRigidbodyMotionState(const RigidBodyID& id)
+	{
+		if (!m_rigidbodies.contains(id)) return false;
+		return static_cast<MotionState*>(m_rigidbodies.get(id)->getMotionState());
+	}
 
 public:
-
 
 	BtPhysicsEngine()
 	{
@@ -158,61 +203,72 @@ public:
 	{
 	}
 
-	void getTransform(glm::mat4* transformOut, RigidBodyID id)
-	{
-
-	}
-
 	void runSimulation(float deltaTime)
 	{
 		m_dynamicsWorld->stepSimulation(deltaTime, 10);
 	}
 
-	RigidBodyID createRigidBodySphere(
-		const float& radius
-		, glm::vec3 startOrigin
-		, glm::quat startRotation
-		, const float& mass)
+	bool getRigidbodyTransform(Transform* transformOut, const RigidBodyID& id)
 	{
-		Transform* transform = new Transform();
-		btVector3 momentOfInertia = { 1.f,1.f,1.f };
-		RigidBodyID rbid = m_nextRBID;
-		m_nextRBID++;
-
-		transform->position = glmToBt(startOrigin);
-		transform->rotation = glmToBt(startRotation);
-
-
-
-		btVector3 startOrigin(transform->position);
-		btCollisionShape* collisionShape = new btSphereShape(radius);
-
-		collisionShape->calculateLocalInertia(mass, momentOfInertia);
-		MotionState* motionState = new MotionState();
-		motionState->m_transform = transform;
-
-		if (command.isKinematic)
-		{
-			mass = 0.0f;
-			momentOfInertia = { 0,0,0 };
-		}
-
-		btRigidBody::btRigidBodyConstructionInfo rbInfo{ mass, motionState, collisionShape, momentOfInertia };
-		btRigidBody* rigidBody = new btRigidBody(rbInfo);
-
-		if (command.isKinematic)
-		{
-			rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-			rigidBody->setActivationState(DISABLE_DEACTIVATION);
-		}
-
-
-		m_rigidbodies.insert(command.entity, rigidBody);
-
-		m_dynamicsWorld->addRigidBody(rigidBody);
+		MotionState* ms = getRigidbodyMotionState(id);
+		transformOut->setPosition(ms->getPositionGlm());
+		transformOut->setRotation(ms->getRotationGlm());
 	}
 
+	bool setRigidbodyTransform(const Transform& transform, const RigidBodyID& id)
+	{
+		MotionState* ms = getRigidbodyMotionState(id);
+		ms->setPosition(transform.getPosition());
+		ms->setRotation(transform.getRotation());
+	}
 
+	bool activateRigidbody(const RigidBodyID& id)
+	{
+		if (m_rigidbodies.contains(id))
+		{
+			auto* rb = m_rigidbodies.get(id);
+			rb->setActivationState(ACTIVE_TAG);
+			return true;
+		}
+		return false;
+	}
+
+	bool deactivateRigidbody(const RigidBodyID& id)
+	{
+		if (m_rigidbodies.contains(id))
+		{
+			auto* rb = m_rigidbodies.get(id);
+			rb->setActivationState(DISABLE_SIMULATION);
+			return true;
+		}
+		return false;
+	}
+
+	RigidBodyID createRigidBodyBox
+	(
+		const glm::vec3& halfExtents
+		, const Transform& transform
+		, const float& mass
+		, const bool& isKinematic
+		, const bool& isActive
+	)
+	{
+		btBoxShape* collider = new btBoxShape(glmToBt(halfExtents));
+		RigidBodyID rid = createRigidBody(collider, transform, mass, isKinematic, isActive);
+		m_collisionShapes.insert(rid, collider);
+	}
+
+	RigidBodyID createRigidBodySphere
+	(
+		const float& radius
+		, const Transform& transform
+		, const float& mass
+		, const bool& isKinematic
+		, const bool& isActive
+	)
+	{
+		btSphereShape* collider = new btSphereShape(radius);
+		RigidBodyID rid = createRigidBody(collider, transform, mass, isKinematic, isActive);
+		m_collisionShapes.insert(rid, collider);
+	}
 };
-
-#endif
