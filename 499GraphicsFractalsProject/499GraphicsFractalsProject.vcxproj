@@ -163,6 +163,7 @@
     <None Include="plant.vert" />
     <None Include="shader.frag" />
     <None Include="shader.vert" />
+    <None Include="shaderInst.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
@@ -175,6 +176,7 @@
     <ClInclude Include="Material.h" />
     <ClInclude Include="Noise.h" />
     <ClInclude Include="Physics.h" />
+    <ClInclude Include="PickingTexture.h" />
     <ClInclude Include="Plane.h" />
     <ClInclude Include="Plant.h" />
     <ClInclude Include="Mesh.h" />
@@ -187,6 +189,7 @@
     <ClInclude Include="Transform.h" />
     <ClInclude Include="TreeController.h" />
     <ClInclude Include="TreeGenerator.h" />
+    <ClInclude Include="TreeItemPicker.h" />
     <ClInclude Include="UI.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>

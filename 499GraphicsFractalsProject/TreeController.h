@@ -2,6 +2,7 @@
 #include "Mesh.h"
 #include "InstancedMesh.h"
 #include "TreeGenerator.h"
+#include "RenderedObject.h"
 
 
 class TreeManager
@@ -28,12 +29,12 @@ class TreeManager
 	}m_treeMeshSettings{};
 
 	InstancedMesh leaves;
-	InstancedMesh tree;
+	//InstancedMesh tree;
 
 	std::vector<glm::mat4> leafInstancesCached{};
 
-	Material treeMat;
-	Material leafMat;
+	Material m_treeMat;
+	Material m_leafMat;
 
 	glm::mat4 worldTransform{ 1.0f };
 	glm::mat4 localTransform{ 1.0f };
@@ -42,6 +43,8 @@ class TreeManager
 
 	Noise4D m_noise{};
 	float time{ 0.f };
+
+	std::deque<RenderedObject> trees{};
 
 public:
 	TreeManager
@@ -54,8 +57,8 @@ public:
 	)
 		:
 		leaves(leafMesh)
-		, treeMat(treeMat)
-		, leafMat(leafMat)
+		, m_treeMat(treeMat)
+		, m_leafMat(leafMat)
 		, m_treeShader(treeShader)
 		, m_leafShader(leafShader)
 	{
@@ -72,7 +75,8 @@ public:
 			leafStride = projectedLeafCount / maxLeafInstances + 1;
 		}
 
-		std::vector<glm::mat4> treeInstances{};
+		trees.clear();
+
 		std::vector<glm::mat4> leafInstancesNew{};
 
 		int sideLen = static_cast<int>(glm::sqrt(static_cast<double>(m_treeInstanceSettings.count) + 0.99999999));
@@ -91,57 +95,65 @@ public:
 
 			glm::mat4 treeTransform = translateTree * rotTree;
 
-			treeInstances.push_back(treeTransform);
+			//make these all first, and then regenerate the meshes
+			RenderedObject rob{ m_treeShader, m_treeMat };
 
-			for (int leaf{ 0 }; leaf < leafInstancesCached.size(); leaf += leafStride)
-			{
-				glm::mat4 leafTransform = treeTransform * leafInstancesCached[leaf];
-				leafInstancesNew.push_back(leafTransform);
-			}
+			trees.push_back(rob);
+			trees.back().getTransform().set(treeTransform);
+			//treeInstances.push_back(treeTransform);
+
+
+
 		}
 
-		tree.changeInstances(treeInstances);
+		//tree.changeInstances(treeInstances);
 		leaves.changeInstances(leafInstancesNew);
 	}
 
-
-
-	void refreshTree()
+	void refreshTrees()
 	{
 		constexpr float textureHeight = 0.5f;
 
-		tree.addInstance(worldTransform);
+		//tree.addInstance(worldTransform);
 		TreeGenerator t{ 1,8 };
+		std::vector<glm::mat4> newLeafInstances{};
 
-		t.generateExampleTree(
-			m_treeMeshSettings.local
-			, m_treeMeshSettings.levels
-			, m_treeMeshSettings.n
-			, { 2,2,2 }
-			, m_treeMeshSettings.deltaX
-			, m_treeMeshSettings.deltaZ
-			, m_treeMeshSettings.stride
-			, m_treeMeshSettings.jitter
-			, textureHeight);
+		const size_t maxLeafInstances = 8000;
+		size_t projectedLeafCount = t.computeLeafCountProjected(m_treeMeshSettings.levels, m_treeMeshSettings.n) * m_treeInstanceSettings.count;
 
-		//t.generateTreeWithNoise(local, 10, 5, 1);
+		size_t leafStride = 1;
+		if (maxLeafInstances < projectedLeafCount)
+		{
+			leafStride = projectedLeafCount / maxLeafInstances + 1;
+		}
 
 		leafInstancesCached = t.getLeafInstances();
-		tree.changeMesh(t.getMesh());
-
-		if (tree.instanceCount() > 1)
+		for (auto& tree : trees)
 		{
-			reloadTreeInstances();
-		}
+			t.generateExampleTree(
+				m_treeMeshSettings.local
+				, m_treeMeshSettings.levels
+				, m_treeMeshSettings.n
+				, { 2,2,2 }
+				, m_treeMeshSettings.deltaX
+				, m_treeMeshSettings.deltaZ
+				, m_treeMeshSettings.stride
+				, m_treeMeshSettings.jitter
+				, textureHeight);
 
-		else
-		{
-			tree.changeMesh(t.getMesh());
-			leaves.changeInstances(leafInstancesCached);
+
+			tree.getMesh()->changeMesh(t.getMesh());
+			auto leaves = t.getLeafInstances();
+			for (int leaf{ 0 }; leaf < leaves.size(); leaf += leafStride)
+			{
+				glm::mat4 leafTransform = tree.getTransform().matrix() * leaves[leaf];
+				newLeafInstances.push_back(leafTransform);
+			}
 		}
+		leaves.changeInstances(newLeafInstances);
 	}
 
-	void refreshTree(const glm::mat4& local, int levels, int n = 10, float deltaX = 30.5f, float deltaZ = 10.5f, float stride = 1.5f, float jitter = 5.f)
+	void refreshTrees(const glm::mat4& local, int levels, int n = 10, float deltaX = 30.5f, float deltaZ = 10.5f, float stride = 1.5f, float jitter = 5.f)
 	{
 		m_treeMeshSettings =
 		{
@@ -154,7 +166,7 @@ public:
 			.jitter = jitter
 		};
 
-		refreshTree();
+		refreshTrees();
 	}
 
 	void setShaders(std::weak_ptr<Shader> treeShader, std::weak_ptr<Shader> leafShader)
@@ -197,7 +209,10 @@ public:
 		if (auto lock = m_treeShader.lock())
 		{
 			lock->useShader();
-			tree.initialize();
+			for (auto& tree : trees)
+			{
+				tree.initialize();
+			}
 		}
 
 		if (auto lock = m_leafShader.lock())
@@ -209,6 +224,23 @@ public:
 	void changeLeafStride(const int& stride)
 	{
 		leaves.changeInstanceStride(stride);
+	}
+
+	std::vector<glm::mat4> getAppleOrigins()
+	{
+		constexpr int appleStride = 10;
+		std::vector<glm::mat4> appleSeats{};
+		const std::vector<glm::mat4>& leafInsts = leaves.getInstances();
+
+		for (int i{}; i < leafInsts.size(); ++i)
+		{
+			if (i % appleStride == 0)
+			{
+				appleSeats.push_back(leafInsts[i]);
+			}
+		}
+
+		return appleSeats;
 	}
 
 	void tick(float deltaTime)
@@ -242,8 +274,11 @@ public:
 			lock->useShader();
 			lock->setMat4("model", worldTransform);
 			lock->setMat3("texture", glm::mat3(0.5f));
-			lock->setMaterial(treeMat);
-			tree.draw();
+			lock->setMaterial(m_treeMat);
+			for (auto& tree : trees)
+			{
+				tree.draw();
+			}
 		}
 
 		if (auto lock = m_leafShader.lock())
@@ -251,7 +286,7 @@ public:
 			lock->useShader();
 			lock->setMat4("model", worldTransform);
 			lock->setMat3("texture", glm::mat3(.5f));
-			lock->setMaterial(leafMat);
+			lock->setMaterial(m_leafMat);
 			leaves.draw();
 		}
 	}

@@ -18,8 +18,11 @@ class TreeGenerator
 private:
 	std::vector<glm::vec2> m_layerShape{};
 	std::vector<glm::vec2> m_layerNorms{};
+
 	std::vector<glm::mat4> m_leafInstances{};
-	SparseSet<VertexLayer> layers{};
+
+	SparseSet<VertexLayer> m_layers{};
+
 	std::vector<VertexData> m_data{};
 	std::vector<unsigned int> m_indices{};
 
@@ -28,6 +31,23 @@ private:
 	int nextId = 0;
 	bool m_noiseEnabled{ true };
 	Noise4D m_noise{};
+
+
+	size_t m_layerCount{ 0 };
+
+
+	std::vector<glm::vec2> m_lastOffset{};
+
+	void cleanup()
+	{
+		m_leafInstances.clear();
+		m_data.clear();
+		m_indices.clear();
+		m_layers.clear();
+		m_lastOffset.resize(m_layerShape.size(), glm::vec2(0.0f));
+		m_time = 0;
+		nextId = 0;
+	}
 
 	void addVertsHelper(const glm::mat4& transform, float noise, float v)
 	{
@@ -129,15 +149,6 @@ private:
 		return layer;
 	}
 
-
-	size_t m_layerCount{ 0 };
-
-	std::stack<glm::mat4> layerTransforms{};
-
-	glm::mat4 m_lastTransform{};
-	std::vector<glm::vec2> m_lastOffset{};
-
-	std::vector<glm::vec3> m_instancePositions{};
 
 	glm::mat3 createLookatMatrix(const glm::vec3& targetUp)
 	{
@@ -278,6 +289,8 @@ public:
 
 	void generateExampleTree(glm::mat4 local, int levels, int n, glm::vec3 scale, float deltaX, float deltaZ, float stride, float noiseScale, float textureHeight)
 	{
+		cleanup();
+
 		size_t vertexCount = 0;
 		VertexLayer parent = addLayer(std::nullopt, local * glm::scale(glm::mat4(1), scale), noiseScale, textureHeight);
 
@@ -329,11 +342,8 @@ public:
 			}
 
 			sf.parent = addLayer(sf.parent, sf.local * glm::scale(glm::mat4(1), sf.scale), noiseScale, textureHeight);
-
 			float radX = sf.stride / sf.deltaX;
-
 			float theta = Random::nextFloat();
-
 
 			float scaleFactor = 0.2f;
 			for (int j{}; j < sf.n; ++j)
@@ -356,8 +366,8 @@ public:
 
 				glm::mat4 offsetMat = glm::translate(glm::mat4(1), glm::vec3{ offsetX, 0,offsetY });
 
-				sf.local = sf.local  * (tPivotInvX * rotX * tPivotX);
-				sf.local = sf.local  * (tPivotInvZ * rotZ * tPivotZ);
+				sf.local = sf.local * (tPivotInvX * rotX * tPivotX);
+				sf.local = sf.local * (tPivotInvZ * rotZ * tPivotZ);
 
 				sf.local = sf.local * offsetMat;
 
@@ -433,6 +443,35 @@ public:
 			}
 
 		}
+	}
+
+	size_t computeLeafCountProjected(int levels, int n)
+	{
+		size_t count = 0;
+		std::vector<std::pair<int, int>> stack{ { levels, n } };
+
+		while (!stack.empty())
+		{
+			const auto [lvl, cnt] = stack.back();
+			stack.pop_back();
+
+			if (lvl < 1) continue;
+
+			if (cnt <= 1 || lvl < 2)
+			{
+				count++;
+				if (cnt <= 1) continue;
+			}
+
+			const int next = std::max(cnt * 2 / 3, 1);
+			const int branchCount = lvl > levels * 4 / 5 ? 4 : 1;
+
+			const int downCount = std::max(cnt - 1 - cnt * 2 / 3, 0);
+			for (int k = 0; k < downCount; ++k) stack.push_back({ lvl - 1, next });
+
+			for (int k = 0; k < branchCount; ++k) stack.push_back({ lvl, next });
+		}
+		return count;
 	}
 
 	Mesh getMesh()

@@ -2,6 +2,7 @@
 #include <glm/ext/vector_float3.hpp>
 #include <glm/ext/quaternion_float.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 class Transform
 {
@@ -36,6 +37,23 @@ public:
 	{
 		m_scale = scale;
 		m_dirty = true;
+	}
+
+	void set(const glm::mat4& t)
+	{
+		glm::vec3 position;
+		glm::quat orientation;
+		glm::vec3 scale;
+		glm::vec3 skew;
+		glm::vec4 perspective;
+
+		glm::decompose(t, scale, orientation, position, skew, perspective);
+
+		m_position = position;
+		m_rotation = orientation;
+		m_scale = scale;
+
+		m_matrix = t;
 	}
 
 	const glm::vec3& getPosition() const { return m_position; }

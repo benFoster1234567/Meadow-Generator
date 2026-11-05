@@ -34,6 +34,15 @@ public:
 		m_denseToSparse.reserve(Capacity);
 	}
 
+	void clear()
+	{
+		m_denseToSparse.clear();
+		m_sparse.clear();
+		m_dense.clear();
+		m_size = 0;
+		m_sparse.resize(SparseMax, Capacity);
+	}
+
 	bool full()
 	{
 		return m_denseToSparse.size() == Capacity;

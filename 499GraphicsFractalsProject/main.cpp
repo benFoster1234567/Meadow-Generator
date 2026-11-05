@@ -1,5 +1,5 @@
 #define ENSURE_GPU_RENDERED
-//#define LOG_DEBUG_INFO
+#define LOG_DEBUG_INFO
 
 #ifdef _WIN32
 #ifdef ENSURE_GPU_RENDERED
@@ -40,11 +40,13 @@ Mesh plane(Plane{}, 10.f);
 Camera camera{ 1000,700 };
 ShaderManager shaderManager{};
 
-ShaderManager::ShaderIndex leavesShader, barkShader, plantShader, baseShader, leafShader;
+ShaderManager::ShaderIndex leavesShader, barkShader, plantShader, instancedShader, leafShader, baseShader;
 
 Plant plant{};
 Plant flower{};
 Plant groundPlane{};
+
+GpuMesh testMesh(Mesh{ Cube{}, 10.f });
 
 constexpr size_t TreeVar = 3;
 
@@ -52,21 +54,21 @@ float cameraSpeed{ 0.f };
 
 InstancedMesh leafMesh{ Mesh{Plane{}, 0.5f} };
 
-std::array<std::unique_ptr<TreeManager>, TreeVar> trees{ nullptr };
-
+std::unique_ptr<TreeManager> trees{};
 
 bool loading = false;
 
+std::unique_ptr<RenderedObject> newGround{};
 /*
 
 TODO:
 - Fix tree texturing #
-- Add leaf textures
+- Add leaf textures #
 - optimize memory and cpu usage #
-- Multiple trees ~
+- Multiple trees #
 - Fix sizes #
 - add apple picking
-- refactor code to oop design
+- refactor code to oop design ~
 - adjust branch taper #
 
 BackBurner:
@@ -114,7 +116,7 @@ int main(int argc, char** argv)
 
 	ui.setup(window);
 
-	setUpTreeControls(ui, 10, 1.5f, {70.f,1.5f}, 7);
+	setUpTreeControls(ui, 10, 1.5f, { 70.f,1.5f }, 7);
 
 	int leafStride = 0;
 
@@ -217,51 +219,36 @@ void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::v
 	ui.addElement(std::make_unique<SliderFloat>(defaultDelta.x, "deltaX", 0.f, 100.f, std::function{
 		[](float dx)
 		{
-			for (auto& tree : trees)
-			{
-				tree->setDeltaX(dx);
-				tree->refreshTree();
-			}
+			trees->setDeltaX(dx);
+			trees->refreshTrees();
 		} }));
 
 	ui.addElement(std::make_unique<SliderFloat>(defaultDelta.y, "deltaZ", 0.f, 100.f, std::function{
 		[](float dz)
 		{
-			for (auto& tree : trees)
-			{
-				tree->setDeltaZ(dz);
-				tree->refreshTree();
-			}
+			trees->setDeltaZ(dz);
+			trees->refreshTrees();
 		} }));
 
 	ui.addElement(std::make_unique<SliderFloat>(defaultStride, "Fractal Stride", 0.f, 5.f,
 		[](float s)
 		{
-			for (auto& tree : trees)
-			{
-				tree->setStride(s);
-				tree->refreshTree();
-			}
+			trees->setStride(s);
+			trees->refreshTrees();
 		}));
 
 	ui.addElement(std::make_unique<SliderInt>(defaultLevels, "Level", 0, 15,
 		[](int l)
 		{
-			for (auto& tree : trees)
-			{
-				tree->setLevels(l);
-				tree->refreshTree();
-			}
+			trees->setLevels(l);
+			trees->refreshTrees();
 		}));
 
 	ui.addElement(std::make_unique<SliderInt>(defaultN, "N", 0, 15,
 		[](int n)
 		{
-			for (auto& tree : trees)
-			{
-				tree->setN(n);
-				tree->refreshTree();
-			}
+			trees->setN(n);
+			trees->refreshTrees();
 		}));
 }
 
@@ -299,10 +286,11 @@ void initialize()
 	loading = true;
 
 	baseShader = shaderManager.addShader("shader.vert", "shader.frag");
+	instancedShader = shaderManager.addShader("shaderInst.vert", "shader.frag");
 	plantShader = shaderManager.addShader("plant.vert", "plant.frag");
 	leafShader = shaderManager.addShader("plant.vert", "leafShader.frag");
 
-	shaderManager.useShader(baseShader);
+	shaderManager.useShader(instancedShader);
 
 	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
@@ -319,9 +307,9 @@ void initialize()
 	shaderManager.all().setLight(light);
 	shaderManager.all().setMat3("texture", glm::mat3(1.0f));
 	shaderManager.all().setInt("diffuseMap", 0);
-	shaderManager.all().setInt("specularMap", 0);
+	shaderManager.all().setInt("specularMap", 1);
 
-	shaderManager.useShader(baseShader);
+	shaderManager.useShader(instancedShader);
 
 	ground.ambient = glm::vec3(1.0f);
 	ground.diffuse = glm::vec3(0.247f, 0.56, 0.043f);
@@ -352,26 +340,25 @@ void initialize()
 	camera.reComputeView();
 	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
 
+	newGround = std::make_unique<RenderedObject>(Mesh(Plane{}, 100.f), shaderManager.getShader(baseShader).value(), ground);
+	newGround->initialize();
 
-	for (int i = 0; i < TreeVar; ++i)
-	{
-		trees[i] = std::make_unique<TreeManager>(Mesh{ Leaf{} }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(leafShader).value());
-		trees[i]->refreshTree(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
-		trees[i]->initialize();
-	}
+	testMesh.initialize();
+
+	trees = std::make_unique<TreeManager>(Mesh{ Leaf{} }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(leafShader).value());
 
 	leafMesh.initialize();
 
 	Plant::initializeNoise();
 	plant.bindNoise("noiseTexture", 2, shaderManager.getShader(plantShader).value());
-	for (int i = 0; i < TreeVar; ++i)
-	{
-		trees[i]->setCount(10 - i);
-		trees[i]->setSpacing(10 * (i+1) );
-		trees[i]->setPosJitter(10.f);
-		trees[i]->setRotJitter(0.9f);
-		trees[i]->reloadTreeInstances();
-	}
+
+	trees->setCount(10);
+	trees->setSpacing(10);
+	trees->setPosJitter(10.f);
+	trees->setRotJitter(0.9f);
+	trees->reloadTreeInstances();
+	trees->initialize();
+	trees->refreshTrees(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
 }
 
 
@@ -402,7 +389,7 @@ void setupScene()
 	plant.unitize();
 	flower.unitize();
 
-	groundPlane.addComponent(plane, glm::mat4(1), ground, shaderManager.getShader(baseShader).value());
+	groundPlane.addComponent(plane, glm::mat4(1), ground, shaderManager.getShader(instancedShader).value());
 	groundPlane.addInstanceTransform(glm::translate(glm::mat4(1), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3{ 10 }));
 	groundPlane.initialize();
 }
@@ -434,9 +421,9 @@ void display(Window& window, float deltaTime)
 	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(angle));
 	camera.reComputeView();
 	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
-	shaderManager.useShader(baseShader);
+	shaderManager.useShader(instancedShader);
 
-	if (auto lock = shaderManager.getShader(baseShader)->lock())
+	if (auto lock = shaderManager.getShader(instancedShader)->lock())
 	{
 		lock->setMaterial(ground);
 	}
@@ -444,20 +431,13 @@ void display(Window& window, float deltaTime)
 		shaderManager.getShader(baseShader)->lock()->setMat3("texture", glm::mat3(50.f));
 	}
 	groundPlane.draw();
-
 	shaderManager.useShader(plantShader);
 	camera.setUniformPos("viewPosition", shaderManager.getShader(plantShader).value());
 	camera.setUniformView("view", shaderManager.getShader(plantShader).value());
 
 	//Sidebar: add SIMD support for this? - OpenMP?
-
+	trees->draw();
 	Plant::updateNoiseTexture();
 	plant.draw();
 	flower.draw();
-
-	for (auto& tree : trees)
-	{
-		tree->draw();
-	}
-
 }

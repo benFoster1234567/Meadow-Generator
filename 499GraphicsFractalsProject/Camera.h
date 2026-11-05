@@ -80,9 +80,12 @@ public:
 		m_projectionMat = glm::perspective(glm::radians(m_fov), (GLfloat)width / height, .5f, 100.f);
 	}
 
-	void setUniformProj(std::string_view name, std::shared_ptr<Shader> shader) const
+	void setUniformProj(std::string_view name, std::weak_ptr<Shader> shader) const
 	{
-		shader->setMat4(name.data(), m_projectionMat);
+		if (auto lock = shader.lock())
+		{
+			lock->setMat4(name.data(), m_projectionMat);
+		}
 	}
 
 	void setUniformPos(std::string_view name, std::weak_ptr<Shader> shader) const
