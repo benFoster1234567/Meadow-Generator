@@ -236,7 +236,7 @@ int main(int argc, char** argv)
 
 void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::vec2 defaultDelta, size_t defaultLevels)
 {
-	ui.addElement(std::make_unique<SliderFloat>(defaultDelta.x, "deltaX", 0.f, 100.f, std::function{
+	ui.addElement(std::make_unique<SliderFloat>(defaultDelta.x, "deltaX", 0.f, 1000.f, std::function{
 		[](float dx)
 		{
 			trees->setDeltaX(dx);

@@ -291,6 +291,9 @@ public:
 	{
 		cleanup();
 
+		//deltaX *= deltaX * deltaX;
+		//deltaZ *= -deltaZ * deltaZ;
+
 		size_t vertexCount = 0;
 		VertexLayer parent = addLayer(std::nullopt, local * glm::scale(glm::mat4(1), scale), noiseScale, textureHeight);
 
@@ -361,15 +364,24 @@ public:
 
 				glm::vec3 position = { sf.local[3] };
 
-				float offsetX = m_noise.compute(glm::vec4(position, 0.f));
-				float offsetY = m_noise.compute(glm::vec4(position, 10.f));
+				float offsetX = m_noise.compute(glm::vec4(10.f*position, 0.f));
+				float offsetY = m_noise.compute(glm::vec4(10.f*position, 10.f));
 
 				glm::mat4 offsetMat = glm::translate(glm::mat4(1), glm::vec3{ offsetX, 0,offsetY });
 
+				if (sf.levels < levels)
+				{
+					//sf.local = sf.local * (tPivotInvX * rotX * tPivotX);
+					//sf.local = sf.local * (tPivotInvZ * rotZ * tPivotZ);
+					sf.local = sf.local * offsetMat;
+				}
+
+				//else
+				//{
+				//	sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) ;
+				//}
 				sf.local = sf.local * (tPivotInvX * rotX * tPivotX);
 				sf.local = sf.local * (tPivotInvZ * rotZ * tPivotZ);
-
-				sf.local = sf.local * offsetMat;
 
 				float t = static_cast<float>(j + 1) / static_cast<float>(n + 1);
 
@@ -404,7 +416,7 @@ public:
 							.levels = sf.levels - 1,
 							.n = std::max(sf.n * 2 / 3, 1),
 							.scale = scaleTemp,
-							.deltaX = sf.deltaX * 2 / 3,
+							.deltaX = sf.deltaX / 3,
 							.deltaZ = sf.deltaZ * 2 / 3 - 0.1f,
 							.stride = sf.stride / 2
 						};
