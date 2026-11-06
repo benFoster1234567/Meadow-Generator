@@ -18,6 +18,7 @@ TreeItemPicker::TreeDangler TreeItemPicker::addBox(const glm::mat4& transform, c
 
 TreeItemPicker::TreeDangler TreeItemPicker::addItem(const glm::mat4& transform, const Collider& collider, float mass)
 {
+
 	Transform t{};
 	t.set(transform);
 	
@@ -36,6 +37,7 @@ TreeItemPicker::TreeDangler TreeItemPicker::addItem(const glm::mat4& transform, 
 
 void TreeItemPicker::freeObject(const unsigned int& objectId)
 {
+	if (!m_enabled) return;
 	if (m_objects[objectId].isFree) return;
 
 	m_objects[objectId].isFree = true;
@@ -45,6 +47,8 @@ void TreeItemPicker::freeObject(const unsigned int& objectId)
 
 void TreeItemPicker::draw(const Camera& camera, std::weak_ptr<Shader> shader, uint8_t flags, bool toPicker)
 {
+	if (!m_enabled) return;
+
 	camera.setUniformPos("viewPosition", shader);
 	camera.setUniformProj("projection", shader);
 	camera.setUniformView("view", shader);
@@ -109,6 +113,7 @@ void TreeItemPicker::changePositions(const std::vector<glm::mat4>& transforms)
 
 void TreeItemPicker::onClick(int x, int y, const Camera& camera)
 {
+	if (!m_enabled) return;
 	m_pickingTexture.enableWriting();
 	GLuint clearColor[4] = { 0u, 0u, 0u, 0u };
 	glClearBufferuiv(GL_COLOR, 0, clearColor);

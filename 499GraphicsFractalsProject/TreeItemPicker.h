@@ -78,6 +78,16 @@ public:
 		m_pickingTexture.resize(w, h);
 	}
 
+	void enable()
+	{
+		m_enabled = true;
+	}
+
+	void disable()
+	{
+		m_enabled = false;
+	}
+
 	void setScale(const glm::vec3& scale)
 	{
 		m_scale = scale;
@@ -92,6 +102,7 @@ public:
 
 	void runSim(float deltaTime)
 	{
+		if (!m_enabled) return;
 		m_physics.runSimulation(deltaTime);
 		for (auto& obj : m_objects)
 		{

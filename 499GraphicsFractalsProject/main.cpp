@@ -1,5 +1,5 @@
 #define ENSURE_GPU_RENDERED
-#define LOG_DEBUG_INFO
+//#define LOG_DEBUG_INFO
 
 #ifdef _WIN32
 #ifdef ENSURE_GPU_RENDERED
@@ -66,14 +66,7 @@ std::unique_ptr<RenderedObject> newGround{};
 /*
 
 TODO:
-- Fix tree texturing #
-- Add leaf textures #
-- optimize memory and cpu usage #
-- Multiple trees #
-- Fix sizes #
-- add apple picking
 - refactor code to oop design ~
-- adjust branch taper #
 
 BackBurner:
 - make tree generation thread safe
@@ -90,6 +83,8 @@ void setupScene();
 void generatePlants();
 void display(Window& window, float deltaTime);
 void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::vec2 defaultDelta, size_t defaultLevels);
+
+bool enableApples{ false };
 
 void changeApples()
 {
@@ -198,6 +193,15 @@ int main(int argc, char** argv)
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		if (enableApples)
+		{
+			treeItems.enable();
+		}
+		else
+		{
+			treeItems.disable();
+		}
+
 		if (!isInitialized.load())
 		{
 			animateLoading("Loading...", window.deltaTime());
@@ -275,6 +279,8 @@ void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::v
 			changeApples();
 
 		}));
+
+	ui.addElement(std::make_unique<CheckBox>("Enable Apple Picking", [](bool on) {enableApples = on;}));
 }
 
 GLuint loadTexture(const char* fileName)
@@ -375,13 +381,15 @@ void initialize()
 	ts.push_back(glm::translate(glm::mat4(1), glm::vec3(0, 7, 0)));
 
 	Mesh appleMesh("Apple.obj");
-	appleMesh.unitize({appleMesh});
+	appleMesh.unitize({appleMesh}, true);
 	treeItems.initialize(1000, 700
 		, std::make_shared<GpuMesh>(appleMesh)
 		, leaves
 		, shaderManager.getShader(baseShader).value().lock() 
 		, shaderManager.getShader(pickerShader).value().lock()  //sorry for this
 		, ts, SphereCollider{.radius = .3f}, 1.f);
+
+	treeItems.disable();
 
 	treeItems.setScale(glm::vec3{ .5f });
 	trees = std::make_unique<TreeManager>(Mesh{ Leaf{} }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(leafShader).value());

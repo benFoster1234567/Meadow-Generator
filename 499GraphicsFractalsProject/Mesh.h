@@ -246,7 +246,7 @@ public:
 		generateLeafMesh(size);
 	}
 
-	static glm::mat4 unitize(const std::vector<std::reference_wrapper<Mesh>>& meshes)
+	static glm::mat4 unitize(const std::vector<std::reference_wrapper<Mesh>>& meshes, bool centerOrigin = false)
 	{
 		using namespace glm;
 
@@ -269,8 +269,10 @@ public:
 
 		float scaleFactor = std::max({ bounds.x, bounds.y, bounds.z });
 		if (scaleFactor == 0) scaleFactor = 0.0001f;
+		glm::vec3 center = (upperBounds + lowerBounds) * .5f;
 
-		const mat4 unitizeMatrix = scale(mat4(1), vec3(1 / scaleFactor));
+		const mat4 unitizeMatrix = scale(mat4(1), vec3(1 / scaleFactor)) 
+			* (centerOrigin? glm::translate(glm::mat4(1), -center) : glm::mat4(1));
 
 		for (auto& mesh : meshes)
 			for (auto& value : mesh.get().m_data)

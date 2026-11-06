@@ -47,6 +47,29 @@ protected:
 
 };
 
+class CheckBox : public ImGuiElementBase
+{
+public:
+	CheckBox(std::string_view label, std::function<void(bool)> func)
+		: m_label(label), m_func(func)
+	{
+	}
+
+	void render() override
+	{
+		if (ImGui::Checkbox(m_label.c_str(), &m_enabled))
+		{
+			m_func(m_enabled);
+		}
+	}
+
+protected:
+	std::string m_label{ "" };
+	std::function<void(bool)> m_func{};
+	bool m_enabled;
+};
+
+
 template<class T>
 class SliderBase : public ImGuiElementBase
 {
