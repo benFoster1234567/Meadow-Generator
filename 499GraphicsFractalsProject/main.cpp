@@ -63,6 +63,11 @@ std::unique_ptr<TreeManager> trees{};
 bool loading = false;
 
 std::unique_ptr<RenderedObject> newGround{};
+
+//SIMD?
+#define GLM_FORCE_INTRINSICS
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+
 /*
 
 TODO:
