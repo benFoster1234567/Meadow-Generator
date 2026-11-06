@@ -10,7 +10,9 @@
 #include <iostream>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/ext/matrix_float4x4.hpp>
+
 #include "Light.h"
+
 class Shader
 {
 public:
@@ -49,6 +51,14 @@ public:
 	void setMat4(const char* name, const glm::mat4& value) const
 	{
 		glUniformMatrix4fv(location(name), 1, GL_FALSE, glm::value_ptr(value));
+	}
+
+	void setUInt(const char* name, unsigned int value) const
+	{
+		auto loc = glGetUniformLocation(m_program, name);
+		if (loc == -1)
+			std::cerr << "location not found for " + std::string(name) + "\n";
+		glUniform1ui(loc, value);
 	}
 
 	void setLight(Light light) const

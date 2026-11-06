@@ -28,6 +28,8 @@ extern "C" {
 #include "Camera.h"
 #include "ShaderManager.h"
 
+#include "TreeItemPicker.h"
+
 #include <IL/il.h>
 #include <IL/ilu.h>
 #include <IL/ilut.h>
@@ -40,11 +42,13 @@ Mesh plane(Plane{}, 10.f);
 Camera camera{ 1000,700 };
 ShaderManager shaderManager{};
 
-ShaderManager::ShaderIndex leavesShader, barkShader, plantShader, instancedShader, leafShader, baseShader;
+ShaderManager::ShaderIndex leavesShader, barkShader, plantShader, instancedShader, leafShader, baseShader, pickerShader;
 
 Plant plant{};
 Plant flower{};
 Plant groundPlane{};
+
+TreeItemPicker treeItems{};
 
 GpuMesh testMesh(Mesh{ Cube{}, 10.f });
 
@@ -87,6 +91,12 @@ void generatePlants();
 void display(Window& window, float deltaTime);
 void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::vec2 defaultDelta, size_t defaultLevels);
 
+void changeApples()
+{
+	treeItems.changePositions(trees->getAppleOrigins());
+	treeItems.createKinematicRigidbody(glm::vec3(0, -1.f, 0), glm::vec3(50.f, 1.f, 50.f));
+
+}
 
 int main(int argc, char** argv)
 {
@@ -161,7 +171,13 @@ int main(int argc, char** argv)
 		{
 			glViewport(0, 0, w, h);
 			camera.onWindowResize(static_cast<float>(w), static_cast<float>(h));
+			treeItems.onResize(w, h);
 			shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
+		});
+
+	window.setMouseCallback([](int button, int action, int mods, int mousex, int mousey)
+		{
+			treeItems.onClick(mousex, mousey, camera);
 		});
 
 	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
@@ -221,6 +237,7 @@ void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::v
 		{
 			trees->setDeltaX(dx);
 			trees->refreshTrees();
+			changeApples();
 		} }));
 
 	ui.addElement(std::make_unique<SliderFloat>(defaultDelta.y, "deltaZ", 0.f, 100.f, std::function{
@@ -228,6 +245,8 @@ void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::v
 		{
 			trees->setDeltaZ(dz);
 			trees->refreshTrees();
+			changeApples();
+
 		} }));
 
 	ui.addElement(std::make_unique<SliderFloat>(defaultStride, "Fractal Stride", 0.f, 5.f,
@@ -235,6 +254,8 @@ void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::v
 		{
 			trees->setStride(s);
 			trees->refreshTrees();
+			changeApples();
+
 		}));
 
 	ui.addElement(std::make_unique<SliderInt>(defaultLevels, "Level", 0, 15,
@@ -242,6 +263,8 @@ void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::v
 		{
 			trees->setLevels(l);
 			trees->refreshTrees();
+			changeApples();
+
 		}));
 
 	ui.addElement(std::make_unique<SliderInt>(defaultN, "N", 0, 15,
@@ -249,6 +272,8 @@ void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::v
 		{
 			trees->setN(n);
 			trees->refreshTrees();
+			changeApples();
+
 		}));
 }
 
@@ -284,7 +309,8 @@ GLuint loadTexture(const char* fileName)
 void initialize()
 {
 	loading = true;
-
+	
+	pickerShader = shaderManager.addShader("pickingShader.vert", "pickingShader.frag");
 	baseShader = shaderManager.addShader("shader.vert", "shader.frag");
 	instancedShader = shaderManager.addShader("shaderInst.vert", "shader.frag");
 	plantShader = shaderManager.addShader("plant.vert", "plant.frag");
@@ -345,6 +371,19 @@ void initialize()
 
 	testMesh.initialize();
 
+	std::vector<glm::mat4> ts{};
+	ts.push_back(glm::translate(glm::mat4(1), glm::vec3(0, 7, 0)));
+
+	Mesh appleMesh("Apple.obj");
+	appleMesh.unitize({appleMesh});
+	treeItems.initialize(1000, 700
+		, std::make_shared<GpuMesh>(appleMesh)
+		, leaves
+		, shaderManager.getShader(baseShader).value().lock() 
+		, shaderManager.getShader(pickerShader).value().lock()  //sorry for this
+		, ts, SphereCollider{.radius = .3f}, 1.f);
+
+	treeItems.setScale(glm::vec3{ .5f });
 	trees = std::make_unique<TreeManager>(Mesh{ Leaf{} }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(leafShader).value());
 
 	leafMesh.initialize();
@@ -360,7 +399,6 @@ void initialize()
 	trees->initialize();
 	trees->refreshTrees(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
 }
-
 
 void setupScene()
 {
@@ -388,6 +426,9 @@ void setupScene()
 
 	plant.unitize();
 	flower.unitize();
+	plant.setTransform(glm::scale(glm::mat4(1), glm::vec3(.5f, .5f, .5f)));
+
+	treeItems.createKinematicRigidbody(glm::vec3(0,-1.f,0), glm::vec3(50.f, 1.f, 50.f));
 
 	groundPlane.addComponent(plane, glm::mat4(1), ground, shaderManager.getShader(instancedShader).value());
 	groundPlane.addInstanceTransform(glm::translate(glm::mat4(1), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3{ 10 }));
@@ -427,6 +468,7 @@ void display(Window& window, float deltaTime)
 	{
 		lock->setMaterial(ground);
 	}
+	
 	{
 		shaderManager.getShader(baseShader)->lock()->setMat3("texture", glm::mat3(50.f));
 	}
@@ -440,4 +482,8 @@ void display(Window& window, float deltaTime)
 	Plant::updateNoiseTexture();
 	plant.draw();
 	flower.draw();
+
+	treeItems.draw(camera);
+	treeItems.runSim(deltaTime);
+
 }

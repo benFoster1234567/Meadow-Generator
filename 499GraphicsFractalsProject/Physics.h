@@ -9,6 +9,7 @@
 
 #include "SparseSet.h"
 #include "Transform.h"
+#include "Collider.h"
 
 //-----------------------------------------------------------------
 //helpers
@@ -123,36 +124,17 @@ private:
 			rigidBody->setActivationState(DISABLE_DEACTIVATION);
 		}
 
-		rigidBody->setActivationState(isActive ? ACTIVE_TAG : DISABLE_SIMULATION);
+		rigidBody->setActivationState(isActive ? ACTIVE_TAG : ISLAND_SLEEPING);
 
 		m_rigidbodies.insert(rbid, rigidBody);
 		m_dynamicsWorld->addRigidBody(rigidBody);
+
+		return rbid;
 	}
 
 	void destroy()
 	{
-		if (m_dynamicsWorld)
-		{
-
-			for (int i = m_dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)
-			{
-				btCollisionObject* obj = m_dynamicsWorld->getCollisionObjectArray()[i];
-				btRigidBody* body = btRigidBody::upcast(obj);
-
-				if (body && body->getMotionState())
-				{
-					delete body->getMotionState();
-				}
-
-				m_dynamicsWorld->removeCollisionObject(obj);
-				delete obj;
-			}
-		}
-
-		for (auto& collisionShape : m_collisionShapes)
-		{
-			delete collisionShape;
-		}
+		clear();
 
 		delete m_dynamicsWorld;
 		delete m_solver;
@@ -169,7 +151,7 @@ private:
 
 	MotionState* getRigidbodyMotionState(const RigidBodyID& id)
 	{
-		if (!m_rigidbodies.contains(id)) return false;
+		if (!m_rigidbodies.contains(id)) return nullptr;
 		return static_cast<MotionState*>(m_rigidbodies.get(id)->getMotionState());
 	}
 
@@ -203,6 +185,35 @@ public:
 	{
 	}
 
+	void clear()
+	{
+		if (m_dynamicsWorld)
+		{
+			for (int i = m_dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)
+			{
+				btCollisionObject* obj = m_dynamicsWorld->getCollisionObjectArray()[i];
+				btRigidBody* body = btRigidBody::upcast(obj);
+
+				if (body && body->getMotionState())
+				{
+					delete body->getMotionState();
+				}
+
+				m_dynamicsWorld->removeCollisionObject(obj);
+				delete obj;
+			}
+		}
+
+		for (auto& collisionShape : m_collisionShapes)
+		{
+			delete collisionShape;
+		}
+		m_nextRBID = 1;
+		m_rigidbodies.clear();
+		m_collisionShapes.clear();
+
+	}
+
 	void runSimulation(float deltaTime)
 	{
 		m_dynamicsWorld->stepSimulation(deltaTime, 10);
@@ -213,6 +224,7 @@ public:
 		MotionState* ms = getRigidbodyMotionState(id);
 		transformOut->setPosition(ms->getPositionGlm());
 		transformOut->setRotation(ms->getRotationGlm());
+		return true;
 	}
 
 	bool setRigidbodyTransform(const Transform& transform, const RigidBodyID& id)
@@ -220,17 +232,30 @@ public:
 		MotionState* ms = getRigidbodyMotionState(id);
 		ms->setPosition(transform.getPosition());
 		ms->setRotation(transform.getRotation());
+		return true;
 	}
 
-	bool activateRigidbody(const RigidBodyID& id)
+	bool activateRigidbody(const RigidBodyID& id, const Transform& t)
 	{
-		if (m_rigidbodies.contains(id))
-		{
-			auto* rb = m_rigidbodies.get(id);
-			rb->setActivationState(ACTIVE_TAG);
-			return true;
-		}
-		return false;
+		if (!m_rigidbodies.contains(id)) return false;
+		btRigidBody* rb = m_rigidbodies.get(id);
+
+		btTransform bt;
+		bt.setIdentity();
+		bt.setOrigin(glmToBt(t.getPosition()));
+		bt.setRotation(glmToBt(t.getRotation()));
+
+		rb->setWorldTransform(bt);
+		rb->setInterpolationWorldTransform(bt);
+		if (auto* ms = rb->getMotionState()) ms->setWorldTransform(bt);
+
+		rb->setLinearVelocity(btVector3(0, 0, 0));
+		rb->setAngularVelocity(btVector3(0, 0, 0));
+		rb->clearForces();
+
+		rb->forceActivationState(ACTIVE_TAG);
+		rb->activate(true);
+		return true;
 	}
 
 	bool deactivateRigidbody(const RigidBodyID& id)
@@ -256,6 +281,8 @@ public:
 		btBoxShape* collider = new btBoxShape(glmToBt(halfExtents));
 		RigidBodyID rid = createRigidBody(collider, transform, mass, isKinematic, isActive);
 		m_collisionShapes.insert(rid, collider);
+
+		return rid;
 	}
 
 	RigidBodyID createRigidBodySphere
@@ -270,5 +297,29 @@ public:
 		btSphereShape* collider = new btSphereShape(radius);
 		RigidBodyID rid = createRigidBody(collider, transform, mass, isKinematic, isActive);
 		m_collisionShapes.insert(rid, collider);
+
+		return rid;
+	}
+
+	RigidBodyID createRigidBody(
+		const Collider& collider
+		, const Transform& transform
+		, const float& mass
+		, const bool& isKinematic
+		, const bool& isActive
+	)
+	{
+		return std::visit([&](const auto& shape) -> RigidBodyID
+			{
+				if constexpr (std::is_same_v<std::decay_t<decltype(shape)>, SphereCollider>)
+				{
+					return createRigidBodySphere(shape.radius, transform, mass, isKinematic, isActive);
+				}
+
+				else if constexpr (std::is_same_v<std::decay_t<decltype(shape)>, BoxCollider>)
+				{
+					return createRigidBodyBox(shape.halfExtents, transform, mass, isKinematic, isActive);
+				}
+			}, collider);
 	}
 };

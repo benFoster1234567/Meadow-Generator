@@ -228,16 +228,15 @@ public:
 
 	std::vector<glm::mat4> getAppleOrigins()
 	{
-		constexpr int appleStride = 10;
+		const int maxApples = 150;
+
 		std::vector<glm::mat4> appleSeats{};
 		const std::vector<glm::mat4>& leafInsts = leaves.getInstances();
+		const int appleStride = leafInsts.size() / maxApples + 1;
 
-		for (int i{}; i < leafInsts.size(); ++i)
+		for (int i{}; i < leafInsts.size(); i += appleStride)
 		{
-			if (i % appleStride == 0)
-			{
-				appleSeats.push_back(leafInsts[i]);
-			}
+			appleSeats.push_back(leafInsts[i]);
 		}
 
 		return appleSeats;

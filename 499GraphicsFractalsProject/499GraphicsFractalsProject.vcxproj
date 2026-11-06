@@ -155,10 +155,13 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Plane.cpp" />
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="TreeItemPicker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vcpkg.json" />
     <None Include="leafShader.frag" />
+    <None Include="pickingShader.frag" />
+    <None Include="pickingShader.vert" />
     <None Include="plant.frag" />
     <None Include="plant.vert" />
     <None Include="shader.frag" />
@@ -167,6 +170,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Collider.h" />
     <ClInclude Include="Components.h" />
     <ClInclude Include="Fractals.h" />
     <ClInclude Include="GLDebugHandler.h" />

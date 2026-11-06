@@ -84,14 +84,14 @@ public:
 		}
 	};
 
-	PixelInfo readPixel(unsigned int x, unsigned int y)
+	PixelInfo readPixel(int x, int y)
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
 		glReadBuffer(GL_COLOR_ATTACHMENT0);
 		PixelInfo pixel;
 		glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT, &pixel);
 		glReadBuffer(GL_NONE);
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		return pixel;
 	}
 

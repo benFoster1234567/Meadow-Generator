@@ -16,7 +16,7 @@ private:
 
 	std::function<void(int, int, int, int)> m_onKey{};
 	std::function<void(int, int)> m_onReshape{};
-
+	std::function<void(int, int, int, int, int)> m_onMouse;
 	friend class ImGuiUi;
 
 public:
@@ -40,10 +40,11 @@ public:
 		glEnable(GL_MULTISAMPLE);
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetKeyCallback(m_window, glfwKeyCallback);
+		glfwSetMouseButtonCallback(m_window, glfwMouseCallback);
 		glfwSetFramebufferSizeCallback(m_window, glfwReshapeCallback);
 		glfwSetErrorCallback(glfwErrorCallback);
 		glfwMakeContextCurrent(m_window);
-		glfwSwapInterval(0);
+		glfwSwapInterval(1);
 
 		m_time = static_cast<float>(glfwGetTime());
 	}
@@ -65,6 +66,15 @@ public:
 	void setShouldClose(bool shouldClose)
 	{
 		glfwSetWindowShouldClose(m_window, shouldClose ? GLFW_TRUE : GLFW_FALSE);
+	}
+
+	static void glfwMouseCallback(GLFWwindow* glfwWindow, int button, int action,  int mods)
+	{
+		Window* window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+		if (!window) return;
+		double xpos, ypos;
+		glfwGetCursorPos(window->m_window, &xpos, &ypos);
+		window->m_onMouse(button, action, mods, xpos, ypos);
 	}
 
 	static void glfwKeyCallback(GLFWwindow* glfwWindow, int key, int scancode, int action, int mods)
@@ -100,6 +110,11 @@ public:
 	void setKeyCallback(std::function<void(int, int, int, int)> func)
 	{
 		m_onKey = func;
+	}
+
+	void setMouseCallback(std::function<void(int, int, int, int, int)> func)
+	{
+		m_onMouse = func;
 	}
 
 	bool shouldClose() const

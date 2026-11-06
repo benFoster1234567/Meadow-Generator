@@ -6,12 +6,14 @@
 #include "PickingTexture.h"
 #include "Camera.h"
 
+#include "Collider.h"
+
 #include <deque>
+
 
 class TreeItemPicker
 {
 	bool m_initialized = false;
-
 	float m_mass{ 1.f };
 
 	std::weak_ptr<Shader> m_shader{};
@@ -19,11 +21,13 @@ class TreeItemPicker
 	std::shared_ptr<GpuMesh> m_mesh{};
 
 	Material m_material{};
+	Collider m_collider;
 
-	glm::vec3 m_halfBounds{};
+	bool m_enabled{true};
+
+	glm::vec3 m_scale{1};
 
 	BtPhysicsEngine m_physics{};
-
 	PickingTexture m_pickingTexture{};
 
 	struct TreeDangler
@@ -33,19 +37,8 @@ class TreeItemPicker
 	};
 	std::deque<TreeDangler> m_objects{};
 
-	TreeDangler addBox(const glm::mat4& transform, const glm::vec3& halfBounds, float mass)
-	{
-		Transform t{};
-		t.set(transform);
-
-		RenderedObject obj{ m_mesh, m_shader, m_material };
-		auto rigidBody = m_physics.createRigidBodyBox(halfBounds, t, mass, false, false);
-		obj.attachRigidbody(rigidBody);
-
-		TreeDangler d = { .m_object = obj, .isFree = false };
-
-		return d;
-	}
+	TreeDangler addBox(const glm::mat4& transform, const glm::vec3& halfBounds, float mass);
+	TreeDangler addItem(const glm::mat4& transform, const Collider& halfBounds, float mass);
 
 	inline void changeRigidbodyPosition(int objIndex, glm::mat4 matrix, size_t id)
 	{
@@ -55,65 +48,8 @@ class TreeItemPicker
 		m_objects[objIndex].m_object.getTransform().set(matrix);
 	}
 
-	void changePositions(const std::vector<glm::mat4>& transforms, const glm::vec3& halfBounds)
-	{
-		constexpr int MaxRemainingObjects = 10;
-		std::deque<TreeDangler> newObjects{};
-
-		int count = 0;
-		for (int i = 0; i < transforms.size(); ++i)
-		{
-			if (i >= m_objects.size())
-			{
-				const auto& d = addBox(transforms[i], halfBounds, m_mass);
-				newObjects.push_back(d);
-			}
-			else if (m_objects[i].isFree)
-			{
-				count++;
-				newObjects.push_front(m_objects[i]);
-			}
-			else
-			{
-				auto rib = m_objects[i].m_object.getRigidbodyId();
-				changeRigidbodyPosition(i, transforms[i], rib);
-			}
-		}
-
-		for (int i = 0; i < count - MaxRemainingObjects; ++i)
-		{
-			newObjects.pop_back();
-		}
-
-		m_objects = std::move(newObjects);
-	}
-
-	void freeObject(const unsigned int& objectId)
-	{
-		if (m_objects[objectId].isFree) return;
-
-		m_objects[objectId].isFree = true;
-		auto rib = m_objects[objectId].m_object.getRigidbodyId();
-		m_physics.activateRigidbody(rib);
-	}
-
-	void draw(const Camera& camera, std::weak_ptr<Shader> shader, uint8_t flags, bool toPicker)
-	{
-		camera.setUniformPos("viewPosition", shader);
-		camera.setUniformProj("projection", shader);
-		camera.setUniformView("view", shader);
-
-		auto lock = shader.lock();
-
-		for (int i = 0; i < m_objects.size(); ++i)
-		{
-			if (toPicker && lock)
-			{
-				lock->setInt("index", i);
-			}
-			m_objects[i].m_object.draw(flags);
-		}
-	}
+	void freeObject(const unsigned int& objectId);
+	void draw(const Camera& camera, std::weak_ptr<Shader> shader, uint8_t flags, bool toPicker);
 
 public:
 
@@ -121,51 +57,51 @@ public:
 
 	void initialize(unsigned int width, unsigned int height,
 		std::shared_ptr<GpuMesh> mesh,
+		Material material,
 		std::shared_ptr<Shader> shader,
 		std::shared_ptr<Shader> pickerShader,
 		const std::vector<glm::mat4>& initialTransforms,
-		const glm::vec3& halfBounds,
-		float mass)
-	{
-		if (m_initialized) return;
-
-		m_mesh = std::move(mesh);
-		m_shader = shader;
-		m_pickerShader = std::move(pickerShader);
-		m_mass = mass;
-		m_halfBounds = halfBounds;
-
-		if (!m_mesh->isInitialized()) m_mesh->initialize();
-		m_pickingTexture.initialize(width, height);
-
-		for (const auto& t : initialTransforms)
-			m_objects.push_back(addBox(t, m_halfBounds, m_mass));
-
-		m_initialized = true;
-	}
+		const Collider& collider,
+		float mass);
 
 	void draw(const Camera& camera)
 	{
 		draw(camera, m_shader, 0, false);
 	}
 
-	void onClick(const unsigned int& x, const unsigned int& y, const  Camera& camera)
+	void changePositions(const std::vector<glm::mat4>& transforms);
+
+	void onClick(int x, int y, const  Camera& camera);
+
+	void onResize(int w, int h)
 	{
-		m_pickingTexture.enableWriting();
-		draw(camera, m_pickerShader, static_cast<uint8_t>(RenderFlag::DontSendMat) | static_cast<uint8_t>(RenderFlag::DontSendMaps), true);
-		m_pickingTexture.disableWriting();
+		m_pickingTexture.resize(w, h);
+	}
 
-		auto p = m_pickingTexture.readPixel(x, y);
+	void setScale(const glm::vec3& scale)
+	{
+		m_scale = scale;
+	}
 
-		if (p.objectID > 0 && p.objectID <= m_objects.size())
-		{
-			freeObject(p.objectID - 1);
-		}
+	void createKinematicRigidbody(const glm::vec3& position, const glm::vec3& halfExtents)
+	{
+		Transform t{};
+		t.setPosition(position);
+		m_physics.createRigidBodyBox(halfExtents, t, 0, true, true);
 	}
 
 	void runSim(float deltaTime)
 	{
 		m_physics.runSimulation(deltaTime);
+		for (auto& obj : m_objects)
+		{
+			if (obj.isFree)
+			{
+				Transform t;
+				m_physics.getRigidbodyTransform(&t, obj.m_object.getRigidbodyId());
+				obj.m_object.getTransform().set(t.matrix() * glm::scale(glm::mat4(1.f), m_scale));
+			}
+		}
 	}
 
 };

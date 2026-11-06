@@ -24,6 +24,9 @@
     <ClCompile Include="Shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TreeItemPicker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vcpkg.json" />
@@ -43,6 +46,12 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="shaderInst.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pickingShader.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pickingShader.frag">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
@@ -123,6 +132,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TreeItemPicker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Collider.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
