@@ -330,14 +330,11 @@ public:
 			stack.push_back(s);
 		}
 
-		std::vector<int> perLevel(levels + 1, 0);
-		// in loop, after popping:
 
 		while (!stack.empty())
 		{
 			StackFrame sf = stack.back();
 			stack.pop_back();
-			perLevel[sf.levels]++;
 
 			if (sf.levels < 1)
 			{
@@ -371,19 +368,13 @@ public:
 
 				if (sf.levels < levels)
 				{
-					//sf.local = sf.local * (tPivotInvX * rotX * tPivotX);
-					//sf.local = sf.local * (tPivotInvZ * rotZ * tPivotZ);
 					sf.local = sf.local * offsetMat;
 				}
 
-				//else
-				//{
-				//	sf.local = sf.local * glm::translate(glm::mat4(1), glm::vec3(0, sf.stride, 0)) ;
-				//}
 				sf.local = sf.local * (tPivotInvX * rotX * tPivotX);
 				sf.local = sf.local * (tPivotInvZ * rotZ * tPivotZ);
 
-				float t = static_cast<float>(j + 1) / static_cast<float>(n + 1);
+				float t = static_cast<float>(j + 1) / static_cast<float>(sf.n + 1);
 
 				scaleFactor = 0.2f + 1 / (10 * (2 * t * glm::sqrt(t) + 0.1f));
 
@@ -439,7 +430,6 @@ public:
 							.levels = sf.levels - 1,
 							.n = std::max(sf.n * 2 / 3, 1),
 							.scale = scaleTemp,
-							//.scale = sf.scale * scaleFactor,
 							.deltaX = sf.deltaX / 2,
 							.deltaZ = sf.deltaZ / 2,
 							.stride = sf.stride / 2

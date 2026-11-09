@@ -9,7 +9,6 @@ class ShaderManager
 {
 	std::vector<std::shared_ptr<Shader>> shaders;
 
-
 public:
 	using ShaderIndex = size_t;
 

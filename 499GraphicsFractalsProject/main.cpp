@@ -405,7 +405,7 @@ void initialize()
 	plant.bindNoise("noiseTexture", 2, shaderManager.getShader(plantShader).value());
 
 	trees->setCount(10);
-	trees->setSpacing(10);
+	trees->setSpacing(20);
 	trees->setPosJitter(10.f);
 	trees->setRotJitter(0.9f);
 	trees->reloadTreeInstances();
@@ -485,6 +485,7 @@ void display(Window& window, float deltaTime)
 	{
 		shaderManager.getShader(baseShader)->lock()->setMat3("texture", glm::mat3(50.f));
 	}
+
 	groundPlane.draw();
 	shaderManager.useShader(plantShader);
 	camera.setUniformPos("viewPosition", shaderManager.getShader(plantShader).value());
