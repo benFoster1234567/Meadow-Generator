@@ -174,7 +174,7 @@
     <ClInclude Include="Components.h" />
     <ClInclude Include="Fractals.h" />
     <ClInclude Include="GLDebugHandler.h" />
-    <ClInclude Include="GpuMesh.h" />
+    <ClInclude Include="BufferInitializer.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="InstancedMesh.h" />
     <ClInclude Include="Material.h" />
@@ -187,6 +187,7 @@
     <ClInclude Include="OpenGL.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="RenderedObject.h" />
+    <ClInclude Include="Renderer.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderManager.h" />
     <ClInclude Include="SparseSet.h" />

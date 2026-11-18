@@ -50,7 +50,7 @@ Plant groundPlane{};
 
 TreeItemPicker treeItems{};
 
-GpuMesh testMesh(Mesh{ Cube{}, 10.f });
+BufferInitializer testMesh(Mesh{ Cube{}, 10.f });
 
 constexpr size_t TreeVar = 3;
 
@@ -95,7 +95,6 @@ void changeApples()
 {
 	treeItems.changePositions(trees->getAppleOrigins());
 	treeItems.createKinematicRigidbody(glm::vec3(0, -1.f, 0), glm::vec3(50.f, 1.f, 50.f));
-
 }
 
 int main(int argc, char** argv)
@@ -105,6 +104,7 @@ int main(int argc, char** argv)
 	window.makeContextCurrent();
 
 	glewExperimental = GL_TRUE;
+
 	if (glewInit() != GLEW_OK)
 	{
 		DBG_LOG(DebugMsgType::GLError, "GLEW Init failed!\n");
@@ -388,7 +388,7 @@ void initialize()
 	Mesh appleMesh("Apple.obj");
 	appleMesh.unitize({appleMesh}, true);
 	treeItems.initialize(1000, 700
-		, std::make_shared<GpuMesh>(appleMesh)
+		, std::make_shared<BufferInitializer>(appleMesh)
 		, leaves
 		, shaderManager.getShader(baseShader).value().lock() 
 		, shaderManager.getShader(pickerShader).value().lock()  //sorry for this
@@ -404,8 +404,8 @@ void initialize()
 	Plant::initializeNoise();
 	plant.bindNoise("noiseTexture", 2, shaderManager.getShader(plantShader).value());
 
-	trees->setCount(10);
-	trees->setSpacing(20);
+	trees->setCount(30);
+	trees->setSpacing(10);
 	trees->setPosJitter(10.f);
 	trees->setRotJitter(0.9f);
 	trees->reloadTreeInstances();

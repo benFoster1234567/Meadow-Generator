@@ -70,7 +70,7 @@ void TreeItemPicker::draw(const Camera& camera, std::weak_ptr<Shader> shader, ui
 	}
 }
 
-void TreeItemPicker::initialize(unsigned int width, unsigned int height, std::shared_ptr<GpuMesh> mesh, Material material, std::shared_ptr<Shader> shader, std::shared_ptr<Shader> pickerShader, const std::vector<glm::mat4>& initialTransforms, const Collider& collider, float mass)
+void TreeItemPicker::initialize(unsigned int width, unsigned int height, std::shared_ptr<BufferInitializer> mesh, Material material, std::shared_ptr<Shader> shader, std::shared_ptr<Shader> pickerShader, const std::vector<glm::mat4>& initialTransforms, const Collider& collider, float mass)
 {
 	if (m_initialized) return;
 
@@ -124,7 +124,7 @@ void TreeItemPicker::onClick(int x, int y, const Camera& camera)
 
 	auto p = m_pickingTexture.readPixel(x, viewport[3] - y);
 
-	std::cout << "item " << p.objectID << " picked!\n";
+	//std::cout << "item " << p.objectID << " picked!\n";
 	if (p.objectID > 0 && p.objectID <= m_objects.size())
 	{
 		freeObject(p.objectID - 1);

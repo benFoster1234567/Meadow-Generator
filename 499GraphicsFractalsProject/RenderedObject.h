@@ -16,7 +16,7 @@ enum class RenderFlag : uint8_t
 class RenderedObject
 {
 private:
-	std::shared_ptr<GpuMesh> m_mesh{ nullptr };
+	std::shared_ptr<BufferInitializer> m_mesh{ nullptr };
 	std::weak_ptr<Shader> m_shader{};
 	Material m_material{};
 	Transform m_transform{};
@@ -25,16 +25,16 @@ private:
 public:
 	RenderedObject() = default;
 	RenderedObject(std::weak_ptr<Shader> shader, Material material)
-		: m_mesh(std::make_shared<GpuMesh>()), m_shader(std::move(shader)), m_material(std::move(material))
+		: m_mesh(std::make_shared<BufferInitializer>()), m_shader(std::move(shader)), m_material(std::move(material))
 	{
 	}
 
 	RenderedObject(const Mesh& mesh, std::weak_ptr<Shader> shader, Material material)
-		: m_mesh(std::make_shared<GpuMesh>(mesh)), m_shader(std::move(shader)), m_material(std::move(material))
+		: m_mesh(std::make_shared<BufferInitializer>(mesh)), m_shader(std::move(shader)), m_material(std::move(material))
 	{
 	}
 
-	RenderedObject(std::shared_ptr<GpuMesh> mesh, std::weak_ptr<Shader> shader, Material material)
+	RenderedObject(std::shared_ptr<BufferInitializer> mesh, std::weak_ptr<Shader> shader, Material material)
 		: m_mesh(std::move(mesh)), m_shader(std::move(shader)), m_material(std::move(material))
 	{
 	}
@@ -86,7 +86,7 @@ public:
 		m_mesh->draw();
 	}
 
-	const std::shared_ptr<GpuMesh>& getMesh()
+	const std::shared_ptr<BufferInitializer>& getMesh()
 	{
 		return m_mesh;
 	}

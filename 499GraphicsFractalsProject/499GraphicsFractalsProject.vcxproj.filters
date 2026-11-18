@@ -116,7 +116,7 @@
     <ClInclude Include="Physics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GpuMesh.h">
+    <ClInclude Include="BufferInitializer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RenderedObject.h">
@@ -135,6 +135,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Collider.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

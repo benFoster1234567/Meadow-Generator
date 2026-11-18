@@ -284,15 +284,11 @@ public:
 				}
 			}
 		}
-
 	}
 
 	void generateExampleTree(glm::mat4 local, int levels, int n, glm::vec3 scale, float deltaX, float deltaZ, float stride, float noiseScale, float textureHeight)
 	{
 		cleanup();
-
-		//deltaX *= deltaX * deltaX;
-		//deltaZ *= -deltaZ * deltaZ;
 
 		size_t vertexCount = 0;
 		VertexLayer parent = addLayer(std::nullopt, local * glm::scale(glm::mat4(1), scale), noiseScale, textureHeight);

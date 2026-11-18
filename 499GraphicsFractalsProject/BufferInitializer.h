@@ -7,7 +7,7 @@
 #include <vector>
 #include <ranges>
 
-class GpuMesh
+class BufferInitializer
 {
 protected:
 
@@ -31,22 +31,22 @@ protected:
 public:
 
 	Mesh m_mesh{};
-	GpuMesh() = default;
+	BufferInitializer() = default;
 
-	explicit GpuMesh(const Mesh& mesh)
+	explicit BufferInitializer(const Mesh& mesh)
 		: m_mesh(mesh) {
 	}
 
-	explicit GpuMesh(Mesh&& mesh)
+	explicit BufferInitializer(Mesh&& mesh)
 		: m_mesh(std::move(mesh)) {
 	}
 
-	virtual~GpuMesh() { release(); }
+	virtual~BufferInitializer() { release(); }
 
-	GpuMesh(const GpuMesh&) = delete;
-	GpuMesh& operator=(const GpuMesh&) = delete;
+	BufferInitializer(const BufferInitializer&) = delete;
+	BufferInitializer& operator=(const BufferInitializer&) = delete;
 
-	GpuMesh(GpuMesh&& other) noexcept
+	BufferInitializer(BufferInitializer&& other) noexcept
 		:
 		m_vao(std::exchange(other.m_vao, 0)),
 		m_vbo(std::exchange(other.m_vbo, 0)),
@@ -56,7 +56,7 @@ public:
 	{
 	}
 
-	GpuMesh& operator=(GpuMesh&& other) noexcept
+	BufferInitializer& operator=(BufferInitializer&& other) noexcept
 	{
 		if (this != &other)
 		{

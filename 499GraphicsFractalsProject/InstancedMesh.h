@@ -15,7 +15,7 @@ struct InstanceData
 	glm::vec4 color{};
 };
 //TODO: Fix this
-class InstancedMesh : public GpuMesh
+class InstancedMesh : public BufferInitializer
 {
 private:
 	std::vector<glm::mat4> m_instances{};
@@ -59,15 +59,15 @@ public:
 	InstancedMesh() = default;
 
 	explicit InstancedMesh(Mesh mesh)
-		: GpuMesh(std::move(mesh)) {
+		: BufferInitializer(std::move(mesh)) {
 	}
 
 	InstancedMesh(Mesh mesh, std::vector<glm::mat4> instances)
-		: GpuMesh(std::move(mesh)), m_instances(std::move(instances)) {
+		: BufferInitializer(std::move(mesh)), m_instances(std::move(instances)) {
 	}
 
 	InstancedMesh(Mesh mesh, const std::vector<InstanceData>& instances)
-		: GpuMesh(std::move(mesh)), m_instances(packAll(instances)) {
+		: BufferInitializer(std::move(mesh)), m_instances(packAll(instances)) {
 	}
 
 
@@ -76,7 +76,7 @@ public:
 
 	InstancedMesh(InstancedMesh&& other) noexcept
 		:
-		GpuMesh(std::move(other)),
+		BufferInitializer(std::move(other)),
 		m_ibo(std::exchange(other.m_ibo, 0)),
 		m_instances(std::move(other.m_instances)) {
 	}

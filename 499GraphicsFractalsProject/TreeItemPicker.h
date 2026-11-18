@@ -18,7 +18,7 @@ class TreeItemPicker
 
 	std::weak_ptr<Shader> m_shader{};
 	std::shared_ptr<Shader> m_pickerShader{};
-	std::shared_ptr<GpuMesh> m_mesh{};
+	std::shared_ptr<BufferInitializer> m_mesh{};
 
 	Material m_material{};
 	Collider m_collider;
@@ -56,7 +56,7 @@ public:
 	TreeItemPicker() = default;
 
 	void initialize(unsigned int width, unsigned int height,
-		std::shared_ptr<GpuMesh> mesh,
+		std::shared_ptr<BufferInitializer> mesh,
 		Material material,
 		std::shared_ptr<Shader> shader,
 		std::shared_ptr<Shader> pickerShader,

@@ -5,6 +5,14 @@
 #include <optional>
 #include "Camera.h"
 
+
+enum class ShaderFlag : uint32_t
+{
+	None = 0,
+	HasUV = 1 << 0,
+	UseInstancing = 1 << 1,
+};
+
 class ShaderManager
 {
 	std::vector<std::shared_ptr<Shader>> shaders;
