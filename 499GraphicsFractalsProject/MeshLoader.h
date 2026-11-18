@@ -7,7 +7,7 @@
 #include <vector>
 #include <ranges>
 
-class BufferInitializer
+class MeshLoader
 {
 protected:
 
@@ -31,22 +31,22 @@ protected:
 public:
 
 	Mesh m_mesh{};
-	BufferInitializer() = default;
+	MeshLoader() = default;
 
-	explicit BufferInitializer(const Mesh& mesh)
+	explicit MeshLoader(const Mesh& mesh)
 		: m_mesh(mesh) {
 	}
 
-	explicit BufferInitializer(Mesh&& mesh)
+	explicit MeshLoader(Mesh&& mesh)
 		: m_mesh(std::move(mesh)) {
 	}
 
-	virtual~BufferInitializer() { release(); }
+	virtual~MeshLoader() { release(); }
 
-	BufferInitializer(const BufferInitializer&) = delete;
-	BufferInitializer& operator=(const BufferInitializer&) = delete;
+	MeshLoader(const MeshLoader&) = delete;
+	MeshLoader& operator=(const MeshLoader&) = delete;
 
-	BufferInitializer(BufferInitializer&& other) noexcept
+	MeshLoader(MeshLoader&& other) noexcept
 		:
 		m_vao(std::exchange(other.m_vao, 0)),
 		m_vbo(std::exchange(other.m_vbo, 0)),
@@ -56,7 +56,7 @@ public:
 	{
 	}
 
-	BufferInitializer& operator=(BufferInitializer&& other) noexcept
+	MeshLoader& operator=(MeshLoader&& other) noexcept
 	{
 		if (this != &other)
 		{

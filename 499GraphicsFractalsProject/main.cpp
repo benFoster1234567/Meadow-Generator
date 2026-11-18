@@ -50,13 +50,13 @@ Plant groundPlane{};
 
 TreeItemPicker treeItems{};
 
-BufferInitializer testMesh(Mesh{ Cube{}, 10.f });
+MeshLoader testMesh(Mesh{ Cube{}, 10.f });
 
 constexpr size_t TreeVar = 3;
 
 float cameraSpeed{ 0.f };
 
-InstancedMesh leafMesh{ Mesh{Plane{}, 0.5f} };
+MeshLoaderInstanced leafMesh{ Mesh{Plane{}, 0.5f} };
 
 std::unique_ptr<TreeManager> trees{};
 
@@ -388,7 +388,7 @@ void initialize()
 	Mesh appleMesh("Apple.obj");
 	appleMesh.unitize({appleMesh}, true);
 	treeItems.initialize(1000, 700
-		, std::make_shared<BufferInitializer>(appleMesh)
+		, std::make_shared<MeshLoader>(appleMesh)
 		, leaves
 		, shaderManager.getShader(baseShader).value().lock() 
 		, shaderManager.getShader(pickerShader).value().lock()  //sorry for this

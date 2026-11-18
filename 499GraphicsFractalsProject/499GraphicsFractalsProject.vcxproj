@@ -174,9 +174,9 @@
     <ClInclude Include="Components.h" />
     <ClInclude Include="Fractals.h" />
     <ClInclude Include="GLDebugHandler.h" />
-    <ClInclude Include="BufferInitializer.h" />
+    <ClInclude Include="MeshLoader.h" />
     <ClInclude Include="Light.h" />
-    <ClInclude Include="InstancedMesh.h" />
+    <ClInclude Include="MeshLoaderInstanced.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Noise.h" />
     <ClInclude Include="Physics.h" />

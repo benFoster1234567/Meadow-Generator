@@ -1,5 +1,5 @@
 #pragma once
-#include "InstancedMesh.h"
+#include "MeshLoaderInstanced.h"
 #include <glm/gtx/transform2.hpp>
 #define OLD_PLANT
 //#define NEW_PLANT

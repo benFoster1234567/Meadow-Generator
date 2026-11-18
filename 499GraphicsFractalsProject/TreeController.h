@@ -1,6 +1,6 @@
 #pragma once
 #include "Mesh.h"
-#include "InstancedMesh.h"
+#include "MeshLoaderInstanced.h"
 #include "TreeGenerator.h"
 #include "RenderedObject.h"
 
@@ -28,7 +28,7 @@ class TreeManager
 		float jitter{ 1.f };
 	}m_treeMeshSettings{};
 
-	InstancedMesh leaves;
+	MeshLoaderInstanced leaves;
 	//InstancedMesh tree;
 
 	std::vector<glm::mat4> leafInstancesCached{};

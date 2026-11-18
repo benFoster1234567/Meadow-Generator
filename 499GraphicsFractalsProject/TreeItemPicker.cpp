@@ -70,7 +70,7 @@ void TreeItemPicker::draw(const Camera& camera, std::weak_ptr<Shader> shader, ui
 	}
 }
 
-void TreeItemPicker::initialize(unsigned int width, unsigned int height, std::shared_ptr<BufferInitializer> mesh, Material material, std::shared_ptr<Shader> shader, std::shared_ptr<Shader> pickerShader, const std::vector<glm::mat4>& initialTransforms, const Collider& collider, float mass)
+void TreeItemPicker::initialize(unsigned int width, unsigned int height, std::shared_ptr<MeshLoader> mesh, Material material, std::shared_ptr<Shader> shader, std::shared_ptr<Shader> pickerShader, const std::vector<glm::mat4>& initialTransforms, const Collider& collider, float mass)
 {
 	if (m_initialized) return;
 

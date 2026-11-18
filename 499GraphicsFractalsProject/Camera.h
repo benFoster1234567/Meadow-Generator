@@ -17,7 +17,7 @@ class Camera
 
 	glm::mat4 m_projectionMat{};
 	glm::mat4 m_viewMat{};
-
+	bool m_isDirty;
 	float m_fov{ 100 };
 public:
 	Camera(float w, float h)
@@ -42,7 +42,7 @@ public:
 	void changeViewDistance(const float& distance)
 	{
 		using namespace glm;
-
+		m_isDirty = true;
 		if (m_eye == m_target) return;
 
 		vec3 offset = distance * normalize(m_eye - m_target);
@@ -54,6 +54,8 @@ public:
 	{
 		m_fov = fov;
 		m_projectionMat = glm::perspective(glm::radians(60.0f), (GLfloat)m_width / m_height, 1.0f, m_fov);
+		m_isDirty = true;
+
 	}
 
 	void setViewAngleAroundTarget(const float& pitch, const float& yaw)
@@ -61,16 +63,28 @@ public:
 		using namespace glm;
 		float viewDistance = glm::length(m_eye - m_target);
 
-		quat qPitch = angleAxis(-pitch, vec3(1.f, 0.f, 0.f)); // Rotate around X-axis
-		quat qYaw = angleAxis(yaw, vec3(0.f, 1.f, 0.f)); // Rotate around Y-axis
+		const quat qPitch = angleAxis(-pitch, vec3(1.f, 0.f, 0.f)); // Rotate around X-axis
+		const quat qYaw = angleAxis(yaw, vec3(0.f, 1.f, 0.f)); // Rotate around Y-axis
 
-		quat orientation = qYaw * qPitch;
-		mat4 rot = mat4_cast(orientation);
+		const quat orientation = qYaw * qPitch;
+		const mat4 rot = mat4_cast(orientation);
 
-		vec3 localOffset = vec3(0.f, 0.f, viewDistance);
-		vec3 rotatedOffset = vec3(rot * vec4(localOffset, 1.f));
+		const vec3 localOffset = vec3(0.f, 0.f, viewDistance);
+		const vec3 rotatedOffset = vec3(rot * vec4(localOffset, 1.f));
 
 		m_eye = m_target + rotatedOffset;
+		m_isDirty = true;
+
+	}
+
+	bool isDirty() const
+	{
+		return m_isDirty;
+	}
+
+	void clean()
+	{
+		m_isDirty = false;
 	}
 
 	void onWindowResize(const float& width, const float& height)
@@ -78,9 +92,13 @@ public:
 		m_width = width;
 		m_height = height;
 		m_projectionMat = glm::perspective(glm::radians(m_fov), (GLfloat)width / height, .5f, 100.f);
+		m_isDirty = true;
+
 	}
 
-	void setUniformProj(std::string_view name, std::weak_ptr<Shader> shader) const
+	//move responsibility to the Renderer class.
+
+	void setUniformProj(std::string_view name, std::weak_ptr<Shader> shader)
 	{
 		if (auto lock = shader.lock())
 		{
@@ -88,7 +106,7 @@ public:
 		}
 	}
 
-	void setUniformPos(std::string_view name, std::weak_ptr<Shader> shader) const
+	void setUniformPos(std::string_view name, std::weak_ptr<Shader> shader)
 	{
 		if (auto lock = shader.lock())
 		{

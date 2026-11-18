@@ -5,7 +5,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <vector>
 #include <ranges>
-#include "GpuMesh.h"
+#include "MeshLoader.h"
 
 struct InstanceData
 {
@@ -15,7 +15,7 @@ struct InstanceData
 	glm::vec4 color{};
 };
 //TODO: Fix this
-class InstancedMesh : public BufferInitializer
+class MeshLoaderInstanced : public MeshLoader
 {
 private:
 	std::vector<glm::mat4> m_instances{};
@@ -56,32 +56,32 @@ private:
 	size_t m_capacity = 0;
 	size_t m_drawCount = 0;
 public:
-	InstancedMesh() = default;
+	MeshLoaderInstanced() = default;
 
-	explicit InstancedMesh(Mesh mesh)
-		: BufferInitializer(std::move(mesh)) {
+	explicit MeshLoaderInstanced(Mesh mesh)
+		: MeshLoader(std::move(mesh)) {
 	}
 
-	InstancedMesh(Mesh mesh, std::vector<glm::mat4> instances)
-		: BufferInitializer(std::move(mesh)), m_instances(std::move(instances)) {
+	MeshLoaderInstanced(Mesh mesh, std::vector<glm::mat4> instances)
+		: MeshLoader(std::move(mesh)), m_instances(std::move(instances)) {
 	}
 
-	InstancedMesh(Mesh mesh, const std::vector<InstanceData>& instances)
-		: BufferInitializer(std::move(mesh)), m_instances(packAll(instances)) {
+	MeshLoaderInstanced(Mesh mesh, const std::vector<InstanceData>& instances)
+		: MeshLoader(std::move(mesh)), m_instances(packAll(instances)) {
 	}
 
 
-	InstancedMesh(const InstancedMesh&) = delete;
-	InstancedMesh& operator=(const InstancedMesh&) = delete;
+	MeshLoaderInstanced(const MeshLoaderInstanced&) = delete;
+	MeshLoaderInstanced& operator=(const MeshLoaderInstanced&) = delete;
 
-	InstancedMesh(InstancedMesh&& other) noexcept
+	MeshLoaderInstanced(MeshLoaderInstanced&& other) noexcept
 		:
-		BufferInitializer(std::move(other)),
+		MeshLoader(std::move(other)),
 		m_ibo(std::exchange(other.m_ibo, 0)),
 		m_instances(std::move(other.m_instances)) {
 	}
 
-	InstancedMesh& operator=(InstancedMesh&& other) noexcept
+	MeshLoaderInstanced& operator=(MeshLoaderInstanced&& other) noexcept
 	{
 		if (this != &other)
 		{
@@ -96,7 +96,7 @@ public:
 		return *this;
 	}
 
-	~InstancedMesh() override { releaseInstanceBuffer(); }
+	~MeshLoaderInstanced() override { releaseInstanceBuffer(); }
 
 	void addInstance(const InstanceData& data)
 	{
