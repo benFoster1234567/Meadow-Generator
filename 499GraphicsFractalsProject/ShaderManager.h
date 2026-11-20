@@ -126,7 +126,7 @@ public:
 		return shaders[i];
 	}
 
-	void uploadCameraUniforms(const Camera& camera, std::string_view viewName
+	void uploadCameraUniforms(Camera& camera, std::string_view viewName
 		, std::string_view projName
 		, std::string_view eyeName)
 	{

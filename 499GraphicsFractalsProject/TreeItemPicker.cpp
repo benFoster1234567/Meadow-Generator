@@ -45,7 +45,7 @@ void TreeItemPicker::freeObject(const unsigned int& objectId)
 	m_physics.activateRigidbody(rib, m_objects[objectId].m_object.getTransform());
 }
 
-void TreeItemPicker::draw(const Camera& camera, std::weak_ptr<Shader> shader, uint8_t flags, bool toPicker)
+void TreeItemPicker::draw(Camera& camera, std::weak_ptr<Shader> shader, uint8_t flags, bool toPicker)
 {
 	if (!m_enabled) return;
 

@@ -50,7 +50,7 @@ public:
 
 	bool contains(size_t index)
 	{
-		return m_sparse[index] != Capacity;
+		return index < m_sparse.size() && m_sparse[index] != Capacity;
 	}
 
 	void insert(size_t index, const T& value)
@@ -107,7 +107,7 @@ public:
 
 		else
 		{
-			m_dense[denseIndex] = m_dense[size - 1];
+			m_dense[denseIndex] = m_dense[m_size - 1];
 		}
 
 		m_sparse[lastSparseIndex] = denseIndex;

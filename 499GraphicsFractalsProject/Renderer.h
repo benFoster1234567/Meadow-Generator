@@ -6,6 +6,8 @@
 
 #include <array>
 #include "Camera.h"
+#include "MeshLoaderInstanced.h"
+#include <deque>
 
 /*
 * 
@@ -46,55 +48,74 @@ Materials, Meshes, GpuMeshes
 Future requirements will include: shadows, shadow optimizations
 */
 
-using Entity = size_t;
 using ShaderID = size_t;
 using ComponentType = size_t;
-using MeshID = size_t;
 using MeshLoaderID = size_t;
-using MeshLoaderInstancedID = size_t;
 using SubRoutineID = size_t;
-
+using RenderableID = size_t;
+using RigidbodyID = size_t;
+using RenderPassID = size_t;
 
 enum class RendererState
 {
-	
+	Configure,
+	Draw
 };
 
-// could probably split this up since it manages so many different things?
-//leaving it like this for now though
+struct Renderable
+{
+	RenderableID id{};
+	MeshLoaderID mesh{};
+	
+	bool isInstanced = false;
+	bool sendMaps = false;
+	bool hasRigidbody = false;
+
+	glm::mat3 textureScale{ 1 };
+	Transform transform{};
+	Material material{};
+
+	RigidbodyID rigidbody{};
+
+	std::function<void()> setupDraw = []() {};
+};
+
+struct RenderPass
+{
+	ShaderID shader{};
+	bool sendMatMaps{};
+	bool sendMaterials{};
+	std::vector<RenderableID> renderables{};
+};
+
 class Renderer
 {
 public:
 	static constexpr size_t MaxSharedComponentCount = 100;
 
-	Entity createEntity();
-
-	bool attachMesh(Entity entity, MeshLoaderID mesh);
-	bool attachMeshInstanced(Entity entity, MeshLoaderInstancedID mesh);
-
-	const std::vector<glm::mat4>& getMeshInstances(Entity entity, bool* success);
-	bool changeMeshInstances(Entity entity, const std::vector<glm::mat4>& instanceData);
-
-	void setMaterial(Entity entity);
-
-	void setTransform(Entity entity, Transform transform);
-	Transform& changeTransform(Entity);
-
-	SubRoutineID configureShaderSubroutine(ShaderID shader);
-
-	bool attachShader(Entity, ShaderID);
-
 	ShaderID addShader(std::string_view vertexFile, std::string_view fragFile);
 
+	RenderableID addRenderable(Renderable&& renderable);
+
+	void attachRenderableToShaderRenderPass(ShaderID shader, RenderableID renderable);
+
 	MeshLoaderID loadMesh(const Mesh& mesh);
-	MeshLoaderInstancedID loadMeshInstanced(const Mesh& mesh);
+	MeshLoaderID loadMeshInstanced(const Mesh& mesh);
+	void changeMesh(MeshLoaderID id, Mesh mesh);
+	void changeInstances(MeshLoaderID id, const std::vector<glm::mat4>& instances);
+
+	void initialize();
 
 	void draw(Camera& camera);
 
 private:
-	//Shared components - not unique
-	std::array<Material, MaxSharedComponentCount> m_materials{};
-	std::array<MeshLoader, MaxSharedComponentCount> m_meshLoaders{};
+	SparseSet<MeshLoader> m_meshLoaders{};
+	SparseSet<MeshLoaderInstanced> m_meshLoadersInstanced{};
 
+	std::vector<Shader> m_shaders{};
 
+	MeshLoaderID m_nextMesh = 1;
+	
+	std::vector<Renderable> m_renderables{};
+	std::vector<RenderPass> m_renderPasses{};
 };

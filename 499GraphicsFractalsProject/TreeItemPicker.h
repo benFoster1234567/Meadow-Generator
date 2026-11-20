@@ -49,7 +49,7 @@ class TreeItemPicker
 	}
 
 	void freeObject(const unsigned int& objectId);
-	void draw(const Camera& camera, std::weak_ptr<Shader> shader, uint8_t flags, bool toPicker);
+	void draw(Camera& camera, std::weak_ptr<Shader> shader, uint8_t flags, bool toPicker);
 
 public:
 
@@ -64,7 +64,7 @@ public:
 		const Collider& collider,
 		float mass);
 
-	void draw(const Camera& camera)
+	void draw(Camera& camera)
 	{
 		draw(camera, m_shader, 0, false);
 	}

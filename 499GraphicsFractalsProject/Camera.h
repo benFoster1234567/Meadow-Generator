@@ -26,6 +26,10 @@ public:
 		reComputeView();
 	}
 
+	glm::vec3 eye()const { return m_eye; }
+	glm::mat4 projection() const { return m_projectionMat; }
+	glm::mat4 view() const { return m_viewMat; }
+
 	void reComputeView()
 	{
 		m_viewMat = glm::lookAt(m_eye, m_target, m_up);
