@@ -68,7 +68,6 @@ struct Renderable
 	MeshLoaderID mesh{};
 	
 	bool isInstanced = false;
-	bool sendMaps = false;
 	bool hasRigidbody = false;
 
 	glm::mat3 textureScale{ 1 };

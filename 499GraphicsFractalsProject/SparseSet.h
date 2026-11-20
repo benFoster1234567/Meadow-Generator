@@ -102,7 +102,7 @@ public:
 
 		if constexpr (IsUniquePtr<T>)
 		{
-			m_dense[denseIndex] = std::move(m_dense[size - 1]);
+			m_dense[denseIndex] = std::move(m_dense[m_size - 1]);
 		}
 
 		else

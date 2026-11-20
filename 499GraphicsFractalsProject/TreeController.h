@@ -32,8 +32,9 @@ class TreeManager
 	ShaderID m_treeShader{};
 	ShaderID m_leafShader{};
 	MeshLoaderID m_leafID{};
+	RenderableID m_leafRendererID{};
 
-	std::vector<glm::mat4> leafInstancesCached{};
+	std::vector<glm::mat4> m_leafInstances{};
 
 	Material m_treeMat;
 	Material m_leafMat;
@@ -46,7 +47,7 @@ class TreeManager
 
 	std::vector<RenderableID> m_renderables{};
 
-	//TODO: get leaves migrated
+	//TODO: get leaves migrated -- 
 public:
 	TreeManager
 	(
@@ -71,7 +72,9 @@ public:
 	{
 		const size_t maxLeafInstances = 8000;
 		constexpr float textureHeight = 0.5f;
-		size_t projectedLeafCount = leafInstancesCached.size() * m_treeInstanceSettings.count;
+
+		//TODO: fix this for the new architecture
+		size_t projectedLeafCount = m_leafInstances.size() * m_treeInstanceSettings.count;
 
 		size_t leafStride = 1;
 		if (maxLeafInstances < projectedLeafCount)
@@ -88,6 +91,7 @@ public:
 		float phi = std::clamp<float>(1.0f - m_treeInstanceSettings.rotYJitter, 0.002f, 1.0f);
 		float theta;
 		theta = std::clamp(1 / phi, 1.0f, 360.f);
+
 		for (int i = 0; i < m_treeInstanceSettings.count; ++i)
 		{
 			theta = std::fmod(theta * theta, 360.f);
@@ -116,7 +120,6 @@ public:
 			{ 
 				.mesh = mesh
 				, .isInstanced = false
-				, .sendMaps = true
 				, .hasRigidbody = false
 				, .textureScale = 0.5f
 				, .transform = Transform(treeTransform)
@@ -126,19 +129,30 @@ public:
 			RenderableID treeID = m_renderer.addRenderable(std::move(renderable));
 			m_renderables.push_back(treeID);
 
+			auto leaves = t.getLeafInstances();
+			for (int leaf{ 0 }; leaf < leaves.size(); leaf += leafStride)
+			{
+				glm::mat4 leafTransform = m_renderer.getTransform(treeID).matrix() * leaves[leaf];
+				leafInstancesNew.push_back(leafTransform);
+			}
 		}
 
+		m_leafInstances = leafInstancesNew;
 		m_renderer.changeInstances(m_leafID, leafInstancesNew);
 
-		//tree.changeInstances(treeInstances);
-		//leaves.changeInstances(leafInstancesNew);
+		m_renderer.addRenderable(
+			{ 
+				.mesh = m_leafID,
+				.isInstanced = true,
+				.hasRigidbody = false,
+				.transform = Transform(glm::mat4(1))
+			}
+		);
 	}
 
 	void refreshTrees()
 	{
 		constexpr float textureHeight = 0.5f;
-
-		//tree.addInstance(worldTransform);
 		TreeGenerator t{ 1,8 };
 		std::vector<glm::mat4> newLeafInstances{};
 
@@ -151,7 +165,7 @@ public:
 			leafStride = projectedLeafCount / maxLeafInstances + 1;
 		}
 
-		leafInstancesCached = t.getLeafInstances();
+		m_leafInstances = t.getLeafInstances();
 		for (auto& tree : m_renderables)
 		{
 			t.generateExampleTree(
@@ -165,12 +179,7 @@ public:
 				, m_treeMeshSettings.jitter
 				, textureHeight);
 
-
-			//tree.getMesh()->changeMesh(t.getMesh());
-
-			//MeshLoaderID mesh = m_renderer.loadMesh(t.getMesh());
-
-			m_renderer.changeMesh(renderer.getRenderableMesh(tree), t.getMesh());
+			m_renderer.changeMesh(m_renderer.getRenderableMesh(tree), t.getMesh());
 
 			auto leaves = t.getLeafInstances();
 			for (int leaf{ 0 }; leaf < leaves.size(); leaf += leafStride)
@@ -180,6 +189,7 @@ public:
 			}
 		}
 
+		m_leafInstances = newLeafInstances;
 		m_renderer.changeInstances(m_leafID, newLeafInstances);
 	}
 
@@ -233,38 +243,14 @@ public:
 		const int maxApples = 150;
 
 		std::vector<glm::mat4> appleSeats{};
-		const std::vector<glm::mat4>& leafInsts = leaves.getInstances();
-		const int appleStride = leafInsts.size() / maxApples + 1;
+		const int appleStride = m_leafInstances.size() / maxApples + 1;
 
-		for (int i{}; i < leafInsts.size(); i += appleStride)
+		for (int i{}; i < m_leafInstances.size(); i += appleStride)
 		{
-			appleSeats.push_back(leafInsts[i]);
+			appleSeats.push_back(m_leafInstances[i]);
 		}
 
 		return appleSeats;
-	}
-
-	void tick(float deltaTime)
-	{
-		time += deltaTime;
-		glm::vec3 noisePos = glm::vec3(m_noise.compute({ 1,0,0,time * 0.001f })
-			, m_noise.compute({ 0,1,0,time * 0.1f })
-			, m_noise.compute({ 0,0,1,time }));
-
-		float theta = noisePos.z - 0.5f;
-		float thetaX = noisePos.x - 0.5f;
-
-		std::vector<VertexData> leafCopy = leaves.m_mesh.m_data;
-
-		for (auto& value : leafCopy)
-		{
-			value.point = glm::vec3(glm::rotate(glm::mat4(1), (theta * 0.1f), glm::vec3(0, 0, 1)) *
-				glm::rotate(glm::mat4(1), thetaX, glm::vec3(1, 0, 0)) * glm::vec4(value.point, 1.0f));
-		}
-
-		// superstitious
-		leaves.m_mesh.m_data = leafCopy;
-		leaves.changeMesh(leaves.m_mesh);
 	}
 
 
