@@ -5,48 +5,49 @@
 #include "Transform.h"
 
 #include <array>
+#include <string_view>
 #include "Camera.h"
 #include "MeshLoaderInstanced.h"
 #include <deque>
 
 /*
-* 
-What objects do we need to render?
-grass, flowers, trees, ground, leaves.
-
-What changes meshes/glbuffersubdata? trees, leaves.
-
-entity -> flags? could be
-	-> instanced
-	-> uniforms
-
-get entities we change, 
- - changeInstances
- - changeMesh
-upload changes
-
-stage shader
-- set camera uniforms
-- get all mesh loaders that use this shader
-- set the subroutines
-- for each mesh loader in here...
-	- get corresponding entities
-		- set uniforms
-			- materials, transform, etc..
-			- draw each entity
-
-How will we change the instances for only instanced entities/render passes?
-
-sparse sets of entity-owned components?
-
-SparseSet<InstanceData> instanceData ---- entityID -> data
-SparseSet<Transform> transforms ----- entityID -> transform
-
-arrays of shared components: 
-Materials, Meshes, GpuMeshes
-
-Future requirements will include: shadows, shadow optimizations
-*/
+ * 
+ * What objects do we need to render?
+ * grass, flowers, trees, ground, leaves.
+ *
+ * What changes meshes/glbuffersubdata? trees, leaves.
+ *
+ * entity -> flags? could be
+ * 	-> instanced
+ * 	-> uniforms
+ *
+ * get entities we change, 
+ *  - changeInstances
+ *  - changeMesh
+ *  - upload changes
+ *
+ * stage shader
+ * - set camera uniforms
+ * - get all mesh loaders that use this shader
+ * - set the subroutines
+ * - for each mesh loader in here...
+ * 	- get corresponding entities
+ * 		- set uniforms
+ * 			- materials, transform, etc..
+ * 			- draw each entity
+ *
+ * How will we change the instances for only instanced entities/render passes?
+ *
+ * sparse sets of entity-owned components?
+ *
+ * SparseSet<InstanceData> instanceData ---- entityID -> data
+ * SparseSet<Transform> transforms ----- entityID -> transform
+ *
+ * arrays of shared components: 
+ * Materials, Meshes, GpuMeshes
+ *
+ * Future requirements will include: shadows, shadow optimizations
+ */
 
 using ShaderID = size_t;
 using ComponentType = size_t;
@@ -66,7 +67,7 @@ struct Renderable
 {
 	RenderableID id{};
 	MeshLoaderID mesh{};
-	
+
 	bool isInstanced = false;
 	bool hasRigidbody = false;
 
@@ -117,7 +118,7 @@ private:
 	std::vector<Shader> m_shaders{};
 
 	MeshLoaderID m_nextMesh = 1;
-	
+
 	std::vector<Renderable> m_renderables{};
 	std::vector<RenderPass> m_renderPasses{};
 };

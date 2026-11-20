@@ -3,5 +3,10 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="TODO.md" />
+  </Folder>
   <Project Path="499GraphicsFractalsProject/499GraphicsFractalsProject.vcxproj" Id="9d6b620a-0334-4179-8809-c7f71870fa77" />
+  <Project Path="RendererLibrary/RendererLibrary.vcxproj" Id="b8d7d1e8-53ca-4b5a-9b9f-7c4afb9ea1b2" />
+  <Project Path="Tests/Tests.vcxproj" />
 </Solution>
