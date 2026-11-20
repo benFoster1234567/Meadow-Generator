@@ -18,6 +18,16 @@ RenderableID Renderer::addRenderable(Renderable&& renderable)
     return id;
 }
 
+void Renderer::setTransform(RenderableID id, const Transform& transform)
+{
+    m_renderables.at(id).transform = transform;
+}
+
+Transform& Renderer::getTransform(RenderableID id)
+{
+    return m_renderables.at(id).transform;
+}
+
 void Renderer::attachRenderableToShaderRenderPass(ShaderID shader, RenderableID renderable)
 {
     m_renderPasses[shader].renderables.push_back(renderable);

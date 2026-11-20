@@ -96,8 +96,11 @@ public:
 	ShaderID addShader(std::string_view vertexFile, std::string_view fragFile);
 
 	RenderableID addRenderable(Renderable&& renderable);
+	void setTransform(RenderableID id, const Transform& transform);
+	Transform& getTransform(RenderableID id);
 
 	void attachRenderableToShaderRenderPass(ShaderID shader, RenderableID renderable);
+	MeshLoaderID getRenderableMesh(RenderableID renderable) { return m_renderables[renderable].mesh; }
 
 	MeshLoaderID loadMesh(const Mesh& mesh);
 	MeshLoaderID loadMeshInstanced(const Mesh& mesh);

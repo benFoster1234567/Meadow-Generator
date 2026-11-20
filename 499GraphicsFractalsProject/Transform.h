@@ -15,6 +15,12 @@ class Transform
 
 public:
 
+	Transform() = default;
+	Transform(const glm::mat4& matrix)
+	{
+		set(matrix);
+	}
+
 	void setPosition(const glm::vec3& position)
 	{
 		m_position = position;

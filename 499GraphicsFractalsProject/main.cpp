@@ -35,6 +35,7 @@ extern "C" {
 #include <IL/ilut.h>
 
 #include <thread>
+#include "Renderer.h"
 
 Material ground, bark, leaves;
 Mesh plane(Plane{}, 10.f);
@@ -58,7 +59,7 @@ float cameraSpeed{ 0.f };
 
 MeshLoaderInstanced leafMesh{ Mesh{Plane{}, 0.5f} };
 
-std::unique_ptr<TreeManager> trees{};
+	std::unique_ptr<TreeManager> trees{}; // added semicolon
 
 bool loading = false;
 
@@ -88,6 +89,8 @@ void setupScene();
 void generatePlants();
 void display(Window& window, float deltaTime);
 void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::vec2 defaultDelta, size_t defaultLevels);
+
+Renderer renderer{};
 
 bool enableApples{ false };
 
@@ -322,12 +325,17 @@ void initialize()
 	loading = true;
 	
 	pickerShader = shaderManager.addShader("pickingShader.vert", "pickingShader.frag");
-	baseShader = shaderManager.addShader("shader.vert", "shader.frag");
-	instancedShader = shaderManager.addShader("shaderInst.vert", "shader.frag");
-	plantShader = shaderManager.addShader("plant.vert", "plant.frag");
-	leafShader = shaderManager.addShader("plant.vert", "leafShader.frag");
+	//baseShader = shaderManager.addShader("shader.vert", "shader.frag");
+	//instancedShader = shaderManager.addShader("shaderInst.vert", "shader.frag");
+	//plantShader = shaderManager.addShader("plant.vert", "plant.frag");
+	//leafShader = shaderManager.addShader("plant.vert", "leafShader.frag");
 
-	shaderManager.useShader(instancedShader);
+	baseShader = renderer.addShader("shader.vert", "shader.frag");
+	instancedShader = renderer.addShader("shaderInst.vert", "shader.frag");
+	plantShader = renderer.addShader("plant.vert", "plant.frag");
+	leafShader = renderer.addShader("plant.vert", "leafShader.frag");
+
+	//shaderManager.useShader(instancedShader);
 
 	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
@@ -341,12 +349,12 @@ void initialize()
 		.specular = glm::vec3(1.0f)
 	};
 
-	shaderManager.all().setLight(light);
-	shaderManager.all().setMat3("texture", glm::mat3(1.0f));
-	shaderManager.all().setInt("diffuseMap", 0);
-	shaderManager.all().setInt("specularMap", 1);
+	//shaderManager.all().setLight(light);
+	//shaderManager.all().setMat3("texture", glm::mat3(1.0f));
+	//shaderManager.all().setInt("diffuseMap", 0);
+	//shaderManager.all().setInt("specularMap", 1);
 
-	shaderManager.useShader(instancedShader);
+	//shaderManager.useShader(instancedShader);
 
 	ground.ambient = glm::vec3(1.0f);
 	ground.diffuse = glm::vec3(0.247f, 0.56, 0.043f);
@@ -368,6 +376,9 @@ void initialize()
 	leaves.shininess = 10.0f;
 	leaves.diffuseMap = loadTexture("leafDiff.png");
 	leaves.specularMap = loadTexture("leafSpec.png");
+
+
+	
 
 	glViewport(0, 0, 1000, 700);
 
@@ -397,7 +408,7 @@ void initialize()
 	treeItems.disable();
 
 	treeItems.setScale(glm::vec3{ .5f });
-	trees = std::make_unique<TreeManager>(Mesh{ Leaf{} }, bark, bark, shaderManager.getShader(baseShader).value(), shaderManager.getShader(leafShader).value());
+	trees = std::make_unique<TreeManager>(renderer, Mesh{ Leaf{} }, bark, bark, baseShader, leafShader);
 
 	leafMesh.initialize();
 
@@ -408,7 +419,7 @@ void initialize()
 	trees->setSpacing(10);
 	trees->setPosJitter(10.f);
 	trees->setRotJitter(0.9f);
-	trees->reloadTreeInstances();
+	trees->setupTreeInstances();
 	trees->initialize();
 	trees->refreshTrees(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
 }
