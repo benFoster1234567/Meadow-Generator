@@ -140,7 +140,7 @@ public:
 		m_leafInstances = leafInstancesNew;
 		m_renderer.changeInstances(m_leafID, leafInstancesNew);
 
-		m_renderer.addRenderable(
+		m_leafRendererID = m_renderer.addRenderable(
 			{ 
 				.mesh = m_leafID,
 				.isInstanced = true,
