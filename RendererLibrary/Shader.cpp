@@ -32,6 +32,6 @@ void Shader::destroy()
 	if (m_program != 0)
 	{
 		glDeleteProgram(this->m_program);
-		this->m_program = 0;
+		m_program = 0;
 	}
 }

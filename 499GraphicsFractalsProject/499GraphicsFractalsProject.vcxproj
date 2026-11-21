@@ -70,6 +70,11 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\RendererLibrary;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
     <VcpkgXUseBuiltInApplocalDeps>true</VcpkgXUseBuiltInApplocalDeps>
@@ -154,8 +159,6 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Plane.cpp" />
-    <ClCompile Include="Renderer.cpp" />
-    <ClCompile Include="Shader.cpp" />
     <ClCompile Include="TreeItemPicker.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -188,7 +191,6 @@
     <ClInclude Include="OpenGL.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="RenderedObject.h" />
-    <ClInclude Include="Renderer.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderManager.h" />
     <ClInclude Include="SparseSet.h" />
@@ -213,7 +215,12 @@
     <Image Include="leaf_spec.png" />
     <Image Include="stemDiff.png" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RendererLibrary\RendererLibrary.vcxproj">
+      <Project>{B8D7D1E8-53CA-4B5A-9B9F-7C4AFB9EA1B2}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
+<ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

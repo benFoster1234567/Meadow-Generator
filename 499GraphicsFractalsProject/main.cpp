@@ -59,7 +59,7 @@ float cameraSpeed{ 0.f };
 
 MeshLoaderInstanced leafMesh{ Mesh{Plane{}, 0.5f} };
 
-	std::unique_ptr<TreeManager> trees{}; // added semicolon
+std::unique_ptr<TreeManager> trees{}; // added semicolon
 
 bool loading = false;
 
@@ -288,7 +288,7 @@ void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::v
 
 		}));
 
-	ui.addElement(std::make_unique<CheckBox>("Enable Apple Picking", [](bool on) {enableApples = on;}));
+	ui.addElement(std::make_unique<CheckBox>("Enable Apple Picking", [](bool on) {enableApples = on; }));
 }
 
 GLuint loadTexture(const char* fileName)
@@ -323,7 +323,7 @@ GLuint loadTexture(const char* fileName)
 void initialize()
 {
 	loading = true;
-	
+
 	pickerShader = shaderManager.addShader("pickingShader.vert", "pickingShader.frag");
 	//baseShader = shaderManager.addShader("shader.vert", "shader.frag");
 	//instancedShader = shaderManager.addShader("shaderInst.vert", "shader.frag");
@@ -378,7 +378,7 @@ void initialize()
 	leaves.specularMap = loadTexture("leafSpec.png");
 
 
-	
+
 
 	glViewport(0, 0, 1000, 700);
 
@@ -397,13 +397,13 @@ void initialize()
 	ts.push_back(glm::translate(glm::mat4(1), glm::vec3(0, 7, 0)));
 
 	Mesh appleMesh("Apple.obj");
-	appleMesh.unitize({appleMesh}, true);
+	appleMesh.unitize({ appleMesh }, true);
 	treeItems.initialize(1000, 700
 		, std::make_shared<MeshLoader>(appleMesh)
 		, leaves
-		, shaderManager.getShader(baseShader).value().lock() 
+		, shaderManager.getShader(baseShader).value().lock()
 		, shaderManager.getShader(pickerShader).value().lock()  //sorry for this
-		, ts, SphereCollider{.radius = .3f}, 1.f);
+		, ts, SphereCollider{ .radius = .3f }, 1.f);
 
 	treeItems.disable();
 
@@ -420,7 +420,6 @@ void initialize()
 	trees->setPosJitter(10.f);
 	trees->setRotJitter(0.9f);
 	trees->setupTreeInstances();
-	trees->initialize();
 	trees->refreshTrees(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
 }
 
@@ -452,7 +451,7 @@ void setupScene()
 	flower.unitize();
 	plant.setTransform(glm::scale(glm::mat4(1), glm::vec3(.5f, .5f, .5f)));
 
-	treeItems.createKinematicRigidbody(glm::vec3(0,-1.f,0), glm::vec3(50.f, 1.f, 50.f));
+	treeItems.createKinematicRigidbody(glm::vec3(0, -1.f, 0), glm::vec3(50.f, 1.f, 50.f));
 
 	groundPlane.addComponent(plane, glm::mat4(1), ground, shaderManager.getShader(instancedShader).value());
 	groundPlane.addInstanceTransform(glm::translate(glm::mat4(1), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3{ 10 }));
@@ -492,7 +491,7 @@ void display(Window& window, float deltaTime)
 	{
 		lock->setMaterial(ground);
 	}
-	
+
 	{
 		shaderManager.getShader(baseShader)->lock()->setMat3("texture", glm::mat3(50.f));
 	}
