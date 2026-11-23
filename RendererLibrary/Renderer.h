@@ -10,6 +10,9 @@
 #include "MeshLoaderInstanced.h"
 #include <deque>
 
+#include "RendererIDs.h"
+#include "Renderable.h"
+
 /*
  *
  * What objects do we need to render?
@@ -49,35 +52,11 @@
  * Future requirements will include: shadows, shadow optimizations
  */
 
-using ShaderID = size_t;
-using ComponentType = size_t;
-using MeshLoaderID = size_t;
-using SubRoutineID = size_t;
-using RenderableID = size_t;
-using RigidbodyID = size_t;
-using RenderPassID = size_t;
 
 enum class RendererState
 {
 	Configure,
 	Draw
-};
-
-struct Renderable
-{
-	RenderableID id{};
-	MeshLoaderID mesh{};
-
-	bool isInstanced = false;
-	bool hasRigidbody = false;
-
-	glm::mat3 textureScale{ 1 };
-	Transform transform{};
-	Material material{};
-
-	RigidbodyID rigidbody{};
-
-	std::function<void()> setupDraw = []() {};
 };
 
 struct RenderPass
@@ -109,6 +88,8 @@ public:
 		renderPass.sendMatMaps = sendMaps;
 	}
 
+
+
 	MeshLoaderID loadMesh(const Mesh& mesh);
 	MeshLoaderID loadMeshInstanced(const Mesh& mesh);
 
@@ -123,8 +104,6 @@ public:
 	{
 		m_light = light;
 	}
-
-
 
 private:
 	SparseSet<MeshLoader> m_meshLoaders{};

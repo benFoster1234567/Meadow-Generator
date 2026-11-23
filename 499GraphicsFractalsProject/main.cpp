@@ -443,8 +443,8 @@ void generatePlants()
 {
 	auto now = std::chrono::steady_clock::now();
 
-	plant.makeFractal(7, 7, 18);
-	flower.makeFractal(7, 5, 18);
+	plant.arrangePlantsUsingFractal(7, 7, 18);
+	flower.arrangePlantsUsingFractal(7, 5, 18);
 
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);

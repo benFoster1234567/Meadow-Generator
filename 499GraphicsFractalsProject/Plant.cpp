@@ -1,4 +1,6 @@
 #include "Plant.h"
+#include "Renderer.h"
+#include "Renderable.h"
 
 std::vector<float> Plant::getNoiseData(size_t size, float frequency, float time)
 {
@@ -42,30 +44,30 @@ void Plant::updateNoiseTexture(size_t size, float frequency, float time)
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void Plant::destroy()
-{
-	for (auto& c : m_components)
-	{
-		glDeleteBuffers(1, &c.vbo);
-		glDeleteBuffers(1, &c.ebo);
-		glDeleteBuffers(1, &c.instanceVbo);
-		glDeleteVertexArrays(1, &c.vao);
-	}
-	m_components.clear();
-	m_instanceTransforms.clear();
-	m_initialized = false;
-}
+//void Plant::destroy()
+//{
+//	for (auto& c : m_components)
+//	{
+//		glDeleteBuffers(1, &c.vbo);
+//		glDeleteBuffers(1, &c.ebo);
+//		glDeleteBuffers(1, &c.instanceVbo);
+//		glDeleteVertexArrays(1, &c.vao);
+//	}
+//	m_components.clear();
+//	m_instanceTransforms.clear();
+//	m_initialized = false;
+//}
 
-void Plant::refreshInstances()
-{
-	for (auto& component : m_components)
-	{
-		glBindVertexArray(component.vao);
-		glBindBuffer(GL_ARRAY_BUFFER, component.instanceVbo);
-		glBufferData(GL_ARRAY_BUFFER, m_instanceTransforms.size() * sizeof(glm::mat4), m_instanceTransforms.data(), GL_DYNAMIC_DRAW);
-	}
-	m_instancesChanged = false;
-}
+//void Plant::refreshInstances()
+//{
+//	for (auto& component : m_components)
+//	{
+//		glBindVertexArray(component.vao);
+//		glBindBuffer(GL_ARRAY_BUFFER, component.instanceVbo);
+//		glBufferData(GL_ARRAY_BUFFER, m_instanceTransforms.size() * sizeof(glm::mat4), m_instanceTransforms.data(), GL_DYNAMIC_DRAW);
+//	}
+//	m_instancesChanged = false;
+//}
 
 std::vector<glm::mat4> Plant::packData(const std::vector<glm::mat4>& transforms, const std::vector<glm::vec3>& colors)
 {
@@ -103,33 +105,28 @@ std::vector<glm::mat4> Plant::packData(const std::vector<glm::mat4>& transforms,
 	return packed;
 }
 
-void Plant::initializeNoise()
-{
-	s_noiseGlobal.m_noiseTexId = generateNoiseTexture(NOISE_SIZE, 0.05f, s_noiseGlobal.m_time);
-}
-
-void Plant::bindNoise(const char* name, size_t slot, std::weak_ptr<Shader> shader)
-{
-	if (auto s = shader.lock())
-	{
-		s->bindTexture(name, slot, s_noiseGlobal.m_noiseTexId);
-	}
-}
+//void Plant::initializeNoise()
+//{
+//	s_noiseGlobal.m_noiseTexId = generateNoiseTexture(NOISE_SIZE, 0.05f, s_noiseGlobal.m_time);
+//}
+//
+//void Plant::bindNoise(const char* name, size_t slot, std::weak_ptr<Shader> shader)
+//{
+//	if (auto s = shader.lock())
+//	{
+//		s->bindTexture(name, slot, s_noiseGlobal.m_noiseTexId);
+//	}
+//}
 
 void Plant::setTransform(glm::mat4 transform)
 {
 	m_transform = transform;
 }
 
-size_t Plant::addComponent(Mesh mesh, glm::mat4 transform, Material material, std::weak_ptr<Shader> shader)
+size_t Plant::addComponent(MeshLoaderID mesh, glm::mat4 transform, Material material, ShaderID shader)
 {
 	m_components.emplace_back(mesh, transform, material, shader);
 	return m_components.size() - 1;
-}
-
-void Plant::updateNoiseTexture()
-{
-	updateNoiseTexture(NOISE_SIZE, 0.05, s_noiseGlobal.m_time);
 }
 
 void Plant::addComponent(ModelComponent c)
@@ -142,18 +139,6 @@ void Plant::addInstanceColor(const glm::vec4& color)
 	m_instanceColors.push_back(color);
 }
 
-void Plant::unitize()
-{
-	std::vector<std::reference_wrapper<Mesh>> meshList{};
-
-	for (auto& c : m_components)
-	{
-		meshList.push_back(c.mesh);
-	}
-
-	Mesh::unitize(meshList);
-
-}
 
 void Plant::addInstanceTransform(glm::mat4 localTransform)
 {
@@ -161,7 +146,7 @@ void Plant::addInstanceTransform(glm::mat4 localTransform)
 	m_instancesChanged = true;
 }
 
-void Plant::arrangePlants(int rows, int cols, float spacing)
+void Plant::arrangePlantsInRows(int rows, int cols, float spacing)
 {
 	for (int i = 0; i < rows; ++i)
 	{
@@ -176,7 +161,7 @@ void Plant::arrangePlants(int rows, int cols, float spacing)
 	}
 }
 
-void Plant::makeFractal(unsigned int density, unsigned int levels, float radius, float randomize, float rotFactor)
+void Plant::arrangePlantsUsingFractal(unsigned int density, unsigned int levels, float radius, float randomize, float rotFactor)
 {
 	glm::mat4 t{ 1.f };
 	size_t count = 0;
@@ -210,7 +195,10 @@ void Plant::makeFractal(unsigned int density, unsigned int levels, float radius,
 
 		if (stackFrame.levels > 0)
 		{
+			//append the transform to the instance container
 			addInstanceTransform(stackFrame.t);
+
+
 			count++;
 			for (int i = 0; i < density; ++i)
 			{
@@ -236,75 +224,21 @@ void Plant::makeFractal(unsigned int density, unsigned int levels, float radius,
 
 void Plant::initialize()
 {
-
 	for (auto& component : m_components)
 	{
-		glGenVertexArrays(1, &component.vao);
-		glBindVertexArray(component.vao);
-		glGenBuffers(1, &component.vbo);
-		glGenBuffers(1, &component.ebo);
-		glGenBuffers(1, &component.instanceColorVbo);
-		glGenBuffers(1, &component.instanceVbo);
+		auto packed = packData(m_instanceTransforms, component.colors); //very slow
+		m_renderer.changeInstances(component.m_meshID, packed);
 
-		glBindBuffer(GL_ARRAY_BUFFER, component.vbo);
-		glBufferData(GL_ARRAY_BUFFER, component.mesh.m_data.size() * sizeof(VertexData), component.mesh.m_data.data(), GL_STATIC_DRAW);
-
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)offsetof(VertexData, point));
-		glEnableVertexAttribArray(0);
-
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)offsetof(VertexData, normal));
-		glEnableVertexAttribArray(1);
-
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)offsetof(VertexData, texCoord));
-		glEnableVertexAttribArray(2);
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, component.ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, component.mesh.m_indices.size() * sizeof(unsigned int), component.mesh.m_indices.data(), GL_STATIC_DRAW);
-
-		if (component.colors.empty())
+		Renderable renderable
 		{
-			component.colors.push_back(component.material.diffuse);
-		}
-		std::vector<glm::mat4> packed = packData(m_instanceTransforms, component.colors); // if I share the array among all components, I wouldn't have to copy and it would possibly still work?
+			.mesh = component.m_meshID,
+			.isInstanced = true,
+			.hasRigidbody = false,
+			.transform = component.m_localTransform,
+			.material = component.m_material
+		};
 
-		glBindBuffer(GL_ARRAY_BUFFER, component.instanceVbo);
-		glBufferData(GL_ARRAY_BUFFER, packed.size() * sizeof(glm::mat4), packed.data(), GL_DYNAMIC_DRAW);
-
-		for (int i = 0; i < 4; ++i) // puts the whole matrix into the shaders as 4 vec4s
-		{
-			GLuint attribIndex = 3 + i;
-			GLuint stride = sizeof(glm::mat4);
-			GLuint size = 4;
-			glVertexAttribPointer(attribIndex, size, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(glm::vec4) * i));
-			glEnableVertexAttribArray(attribIndex);
-			glVertexAttribDivisor(attribIndex, 1);
-		}
-		m_instancesChanged = false;
-
-		glBindVertexArray(0);
-	}
-
-	m_initialized = true;
-}
-
-void Plant::draw()
-{
-
-	if (m_instancesChanged)
-	{
-		refreshInstances();
-	}
-	for (auto& component : m_components)
-	{
-		if (auto lock = component.m_shader.lock())
-		{
-
-			lock->useShader();
-			lock->setMat4("model", component.localTransform * m_transform);
-			lock->setMaterial(component.material, false);
-			lock->bindTexture("noiseTexture", 2, s_noiseGlobal.m_noiseTexId);
-			glBindVertexArray(component.vao);
-			glDrawElementsInstanced(GL_TRIANGLES, component.mesh.m_indices.size(), GL_UNSIGNED_INT, (void*)0, m_instanceTransforms.size());
-		}
+		auto renderableID = m_renderer.addRenderable(std::move(renderable));
+		m_renderer.attachRenderableToShaderRenderPass(component.m_shader, renderableID);
 	}
 }

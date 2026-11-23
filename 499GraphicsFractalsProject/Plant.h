@@ -6,33 +6,28 @@
 
 #ifdef OLD_PLANT
 
-
 #include "Mesh.h"
 #include "Random.h"
 #include "Noise.h"
 #include "Shader.h"
 
+class Renderer;
+
 //plants are made up of components, which have their own instance colors.
 struct ModelComponent
 {
-	GLuint vao{ 0 };
-	GLuint vbo{ 0 };
-	GLuint ebo{ 0 };
-	GLuint instanceColorVbo{ 0 };
-	GLuint instanceVbo{ 0 };
+	ShaderID m_shader{};
 
-	std::weak_ptr<Shader> m_shader;
+	MeshLoaderID m_meshID{};
 
-	Mesh mesh;
+	glm::mat4 m_localTransform{ 1.f };
 
-	glm::mat4 localTransform{ 1.f };
-
-	Material material{ { 0.2f, 0.2f, 0.2f }, { 0.5f, 0.5f, 0.5f }, { 1.f, 1.f, 1.f }, 32.f, 0, 0 };
+	Material m_material{ { 0.2f, 0.2f, 0.2f }, { 0.5f, 0.5f, 0.5f }, { 1.f, 1.f, 1.f }, 32.f, 0, 0 };
 
 	std::vector<glm::vec3> colors{};
 
-	ModelComponent(Mesh m, glm::mat4 t, Material material, std::weak_ptr<Shader> shader)
-		: mesh(std::move(m)), localTransform(t), material(material), m_shader(shader)
+	ModelComponent(MeshLoaderID mesh, glm::mat4 t, Material material, ShaderID shader)
+		: m_meshID(mesh), m_shader(shader), m_localTransform(t), m_material(material)
 	{
 	}
 
@@ -42,6 +37,8 @@ struct ModelComponent
 class Plant
 {
 	static constexpr size_t NOISE_SIZE = 16;
+
+	Renderer& m_renderer;
 
 	bool m_initialized{ false };
 	bool m_instancesChanged{ false };
@@ -63,7 +60,6 @@ class Plant
 
 	static std::vector<float> getNoiseData(size_t size, float frequency, float time);
 
-
 	static GLuint generateNoiseTexture(size_t size, float frequency, float time);
 
 	static void updateNoiseTexture(size_t size, float frequency, float time);
@@ -77,14 +73,18 @@ class Plant
 
 public:
 
-	Plant() = default;
+	Plant(Renderer& renderer)
+		: m_renderer(renderer)
+	{
+	}
 	Plant(const Plant&) = delete;
 	Plant& operator=(const Plant&) = delete;
 	Plant(Plant&& other) noexcept
 		: m_components(std::move(other.m_components)),
 		m_instanceTransforms(std::move(other.m_instanceTransforms)),
 		m_initialized(other.m_initialized),
-		m_instancesChanged(other.m_instancesChanged)
+		m_instancesChanged(other.m_instancesChanged),
+		m_renderer(other.m_renderer)
 	{
 	}
 
@@ -116,7 +116,7 @@ public:
 
 	void setTransform(glm::mat4 transform);
 
-	size_t addComponent(Mesh mesh, glm::mat4 transform, Material material, std::weak_ptr<Shader> shader);
+	size_t addComponent(MeshLoaderID mesh, glm::mat4 transform, Material material, ShaderID shader);
 
 	static void updateNoiseTexture();
 
@@ -128,13 +128,11 @@ public:
 
 	void addInstanceTransform(glm::mat4 localTransform);
 
-	void arrangePlants(int rows, int cols, float spacing);
+	void arrangePlantsInRows(int rows, int cols, float spacing);
 
-	void makeFractal(unsigned int density, unsigned int levels, float radius, float randomize = 0.3f, float rotFactor = 1.0f);
+	void arrangePlantsUsingFractal(unsigned int density, unsigned int levels, float radius, float randomize = 0.3f, float rotFactor = 1.0f);
 
 	void initialize();
-
-	void draw();
 
 };
 
