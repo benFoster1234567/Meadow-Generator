@@ -33,8 +33,6 @@ vec3 overlay(vec3 base, vec3 blend)
     return mix(multiply, screen, step(0.5, base));
 }
 
-subroutine( sha
-
 void main() 
 {
 	vec3 N = gl_FrontFacing ? normalize(in_Normal) : -normalize(in_Normal);

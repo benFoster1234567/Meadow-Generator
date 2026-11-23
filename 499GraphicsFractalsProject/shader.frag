@@ -59,6 +59,7 @@ vec3 blendSoftLight(vec3 baseColor, vec3 detailColor)
 
 void main() 
 {
+	//vec3 N = normalize(in_Normal);
 	vec3 N = gl_FrontFacing ? normalize(in_Normal) : -normalize(in_Normal);
 	
 	vec3 L = normalize(light.position);

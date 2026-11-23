@@ -21,7 +21,7 @@ TreeItemPicker::TreeDangler TreeItemPicker::addItem(const glm::mat4& transform, 
 
 	Transform t{};
 	t.set(transform);
-	
+
 	m_collider = collider;
 
 	RenderedObject obj{ m_mesh, m_shader, m_material };
@@ -86,7 +86,7 @@ void TreeItemPicker::initialize(unsigned int width, unsigned int height, std::sh
 	for (const auto& t : initialTransforms)
 	{
 		m_objects.push_back(addItem(t, collider, m_mass));
-		
+
 	}
 
 	m_initialized = true;
@@ -117,7 +117,6 @@ void TreeItemPicker::onClick(int x, int y, const Camera& camera)
 	m_pickingTexture.enableWriting();
 	GLuint clearColor[4] = { 0u, 0u, 0u, 0u };
 	glClearBufferuiv(GL_COLOR, 0, clearColor);
-	draw(camera, m_pickerShader, static_cast<uint8_t>(RenderFlag::DontSendMat) | static_cast<uint8_t>(RenderFlag::DontSendMaps), true);
 	GLint viewport[4];
 	glGetIntegerv(GL_VIEWPORT, viewport);
 	m_pickingTexture.disableWriting();
