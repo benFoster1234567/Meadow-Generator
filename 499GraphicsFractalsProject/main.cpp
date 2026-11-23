@@ -38,10 +38,14 @@ extern "C" {
 #include "Renderer.h"
 
 Material ground, bark, leaves;
+Material stemMat;
+Material flowerMat;
+Material budMat;
+
 Mesh plane(Plane{}, 10.f);
 
 Camera camera{ 1000,700 };
-ShaderManager shaderManager{};
+//ShaderManager shaderManager{};
 
 ShaderManager::ShaderIndex leavesShader, barkShader, plantShader, instancedShader, leafShader, baseShader, pickerShader;
 
@@ -175,7 +179,6 @@ int main(int argc, char** argv)
 			glViewport(0, 0, w, h);
 			camera.onWindowResize(static_cast<float>(w), static_cast<float>(h));
 			treeItems.onResize(w, h);
-			shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
 		});
 
 	window.setMouseCallback([](int button, int action, int mods, int mousex, int mousey)
@@ -189,7 +192,7 @@ int main(int argc, char** argv)
 	std::thread setupThread(generatePlants);
 	lock = 1;
 
-	setupScene();
+	//setupScene();
 
 	while (!window.shouldClose())
 	{
@@ -320,41 +323,8 @@ GLuint loadTexture(const char* fileName)
 	return tid;
 }
 
-void initialize()
+static void assembleMaterials()
 {
-	loading = true;
-
-	pickerShader = shaderManager.addShader("pickingShader.vert", "pickingShader.frag");
-	//baseShader = shaderManager.addShader("shader.vert", "shader.frag");
-	//instancedShader = shaderManager.addShader("shaderInst.vert", "shader.frag");
-	//plantShader = shaderManager.addShader("plant.vert", "plant.frag");
-	//leafShader = shaderManager.addShader("plant.vert", "leafShader.frag");
-
-	baseShader = renderer.addShader("shader.vert", "shader.frag");
-	instancedShader = renderer.addShader("shaderInst.vert", "shader.frag");
-	plantShader = renderer.addShader("plant.vert", "plant.frag");
-	leafShader = renderer.addShader("plant.vert", "leafShader.frag");
-
-	//shaderManager.useShader(instancedShader);
-
-	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-
-	Light light
-	{
-		.position = glm::vec3(20.0f, 30.0f, 20.0f),
-		.diffuse = glm::vec3(1.0f),
-		.ambient = glm::vec3(0.35f),
-		.specular = glm::vec3(1.0f)
-	};
-
-	//shaderManager.all().setLight(light);
-	//shaderManager.all().setMat3("texture", glm::mat3(1.0f));
-	//shaderManager.all().setInt("diffuseMap", 0);
-	//shaderManager.all().setInt("specularMap", 1);
-
-	//shaderManager.useShader(instancedShader);
 
 	ground.ambient = glm::vec3(1.0f);
 	ground.diffuse = glm::vec3(0.247f, 0.56, 0.043f);
@@ -377,8 +347,35 @@ void initialize()
 	leaves.diffuseMap = loadTexture("leafDiff.png");
 	leaves.specularMap = loadTexture("leafSpec.png");
 
+	stemMat = { .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{0.23f, 0.58f, 0.18f}, .specular = glm::vec3(0.4f), .shininess = 1.f, .diffuseMap = loadTexture("stemDiff.png") };
+	flowerMat = { .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{1.f, 0.2f, 0.2f}, .specular = glm::vec3(0.4f), .shininess = 1.f, .diffuseMap = loadTexture("flowerPetal.png") };
+	budMat = { .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{1.f, 1.f, 0.f} };
+
+}
+
+void initialize()
+{
+	loading = true;
+
+	baseShader = renderer.addShader("shader.vert", "shader.frag");
+	instancedShader = renderer.addShader("shaderInst.vert", "shader.frag");
+	plantShader = renderer.addShader("plant.vert", "plant.frag");
+	leafShader = renderer.addShader("plant.vert", "leafShader.frag");
 
 
+	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	Light light
+	{
+		.position = glm::vec3(20.0f, 30.0f, 20.0f),
+		.diffuse = glm::vec3(1.0f),
+		.ambient = glm::vec3(0.35f),
+		.specular = glm::vec3(1.0f)
+	};
+
+	assembleMaterials();
 
 	glViewport(0, 0, 1000, 700);
 
@@ -386,34 +383,26 @@ void initialize()
 	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(10.f));
 	camera.onWindowResize(static_cast<float>(1000), static_cast<float>(700));
 	camera.reComputeView();
-	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
-
-	newGround = std::make_unique<RenderedObject>(Mesh(Plane{}, 100.f), shaderManager.getShader(baseShader).value(), ground);
-	newGround->initialize();
-
-	testMesh.initialize();
 
 	std::vector<glm::mat4> ts{};
 	ts.push_back(glm::translate(glm::mat4(1), glm::vec3(0, 7, 0)));
 
 	Mesh appleMesh("Apple.obj");
 	appleMesh.unitize({ appleMesh }, true);
-	treeItems.initialize(1000, 700
-		, std::make_shared<MeshLoader>(appleMesh)
-		, leaves
-		, shaderManager.getShader(baseShader).value().lock()
-		, shaderManager.getShader(pickerShader).value().lock()  //sorry for this
-		, ts, SphereCollider{ .radius = .3f }, 1.f);
 
-	treeItems.disable();
+	//treeItems.initialize(1000, 700
+	//	, std::make_shared<MeshLoader>(appleMesh)
+	//	, leaves
+	//	, shaderManager.getShader(baseShader).value().lock()
+	//	, shaderManager.getShader(pickerShader).value().lock()  //sorry for this
+	//	, ts, SphereCollider{ .radius = .3f }, 1.f);
 
-	treeItems.setScale(glm::vec3{ .5f });
+	//treeItems.disable();
+	//treeItems.setScale(glm::vec3{ .5f });
+
 	trees = std::make_unique<TreeManager>(renderer, Mesh{ Leaf{} }, bark, bark, baseShader, leafShader);
 
 	leafMesh.initialize();
-
-	Plant::initializeNoise();
-	plant.bindNoise("noiseTexture", 2, shaderManager.getShader(plantShader).value());
 
 	trees->setCount(30);
 	trees->setSpacing(10);
@@ -421,31 +410,24 @@ void initialize()
 	trees->setRotJitter(0.9f);
 	trees->setupTreeInstances();
 	trees->refreshTrees(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
+
+	renderer.setLight(light);
+
+	MeshLoaderID planeID = renderer.loadMesh(Mesh(Plane{}, 10.f));
+	auto groundID = renderer.addRenderable({ .mesh = planeID, .isInstanced = false, .hasRigidbody = false, .textureScale = glm::mat3(10.f), .transform = Transform(glm::scale(glm::mat4(1), glm::vec3(5))), .material = ground });
+	renderer.attachRenderableToShaderRenderPass(baseShader, groundID);
+	renderer.configureRenderPass(baseShader, true, true);
+	renderer.initialize();
+
+
 }
 
 void setupScene()
 {
-	plant.addComponent(Mesh{ "grass.obj" }, glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3(0.5, .3, .5)), ground, shaderManager.getShader(plantShader).value());
+	//plant.addComponent(Mesh{ "grass.obj" }, glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3(0.5, .3, .5)), ground, shaderManager.getShader(plantShader).value());
 
 	glm::mat4 flowerTransform{ 1 };
-	Material stem{ .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{0.23f, 0.58f, 0.18 }, .specular = glm::vec3(0.4), .shininess = 1, .diffuseMap = loadTexture("stemDiff.png") };
-	Material flowerMat{ .ambient = glm::vec3{1.f}, .diffuse = glm::vec3{1,.2,.2},.specular = glm::vec3(0.4), .shininess = 1, .diffuseMap = loadTexture("flowerPetal.png") };
-	Material bud{ .ambient = glm::vec3{1.f}, .diffuse = {1, 1, 0} };
 
-	flower.addComponent(Mesh{ "stem.obj" }, flowerTransform, stem, shaderManager.getShader(plantShader).value());
-
-	ModelComponent petalComponent(Mesh{ "petals.obj" }, flowerTransform, flowerMat, shaderManager.getShader(plantShader).value());
-
-	petalComponent.colors.emplace_back(1.f, .5f, 0.f);
-	petalComponent.colors.emplace_back(.6, .6, 1);
-	petalComponent.colors.emplace_back(1, 0.5, 0.5);
-	petalComponent.colors.emplace_back(1, 1, 0);
-
-	flower.addComponent(petalComponent);
-	flower.addComponent(Mesh{ "bud.obj" }, flowerTransform, bud, shaderManager.getShader(plantShader).value());
-	flower.addComponent(Mesh{ "leaf1.obj" }, flowerTransform, leaves, shaderManager.getShader(plantShader).value());
-	flower.addComponent(Mesh{ "leaf2.obj" }, flowerTransform, leaves, shaderManager.getShader(plantShader).value());
-	flower.addComponent(Mesh{ "leaf3.obj" }, flowerTransform, leaves, shaderManager.getShader(plantShader).value());
 
 	plant.unitize();
 	flower.unitize();
@@ -453,7 +435,6 @@ void setupScene()
 
 	treeItems.createKinematicRigidbody(glm::vec3(0, -1.f, 0), glm::vec3(50.f, 1.f, 50.f));
 
-	groundPlane.addComponent(plane, glm::mat4(1), ground, shaderManager.getShader(instancedShader).value());
 	groundPlane.addInstanceTransform(glm::translate(glm::mat4(1), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3{ 10 }));
 	groundPlane.initialize();
 }
@@ -462,8 +443,8 @@ void generatePlants()
 {
 	auto now = std::chrono::steady_clock::now();
 
-	plant.makeFractal(7, 7, 18);
-	flower.makeFractal(7, 5, 18);
+	plant.arrangePlantsUsingFractal(7, 7, 18);
+	flower.arrangePlantsUsingFractal(7, 5, 18);
 
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
@@ -484,30 +465,18 @@ void display(Window& window, float deltaTime)
 
 	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(angle));
 	camera.reComputeView();
-	shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
-	shaderManager.useShader(instancedShader);
-
-	if (auto lock = shaderManager.getShader(instancedShader)->lock())
-	{
-		lock->setMaterial(ground);
-	}
-
-	{
-		shaderManager.getShader(baseShader)->lock()->setMat3("texture", glm::mat3(50.f));
-	}
+	//shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
+	//shaderManager.useShader(instancedShader);
 
 	groundPlane.draw();
-	shaderManager.useShader(plantShader);
-	camera.setUniformPos("viewPosition", shaderManager.getShader(plantShader).value());
-	camera.setUniformView("view", shaderManager.getShader(plantShader).value());
 
-	//Sidebar: add SIMD support for this? - OpenMP?
-	trees->draw();
-	Plant::updateNoiseTexture();
-	plant.draw();
-	flower.draw();
+	renderer.draw(camera);
 
-	treeItems.draw(camera);
-	treeItems.runSim(deltaTime);
+	//Plant::updateNoiseTexture();
+	//plant.draw();
+	//flower.draw();
+
+	//treeItems.draw(camera);
+	//treeItems.runSim(deltaTime);
 
 }

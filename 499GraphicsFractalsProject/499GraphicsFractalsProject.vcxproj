@@ -159,6 +159,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Plane.cpp" />
+    <ClCompile Include="Plant.cpp" />
     <ClCompile Include="TreeItemPicker.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -221,6 +222,6 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-<ImportGroup Label="ExtensionTargets">
+  <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

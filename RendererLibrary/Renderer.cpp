@@ -6,7 +6,14 @@ ShaderID Renderer::addShader(std::string_view vertexFile, std::string_view fragF
 	m_shaders.emplace_back();
 	m_renderPasses.emplace_back();
 	m_renderPasses.back().shader = id;
-	m_shaders.back().loadShader(vertexFile, fragFile);
+
+	if (!m_shaders.back().loadShader(vertexFile, fragFile))
+	{
+		throw std::runtime_error("addShader failed for "
+			+ std::string(vertexFile) + " and "
+			+ std::string(fragFile));
+	}
+
 	return id;
 }
 
@@ -78,6 +85,17 @@ void Renderer::changeInstances(MeshLoaderID id, const std::vector<glm::mat4>& in
 
 void Renderer::initialize()
 {
+	if (m_state >= RendererState::Draw)
+	{
+		throw std::runtime_error("Renderer has already been initialized");
+	}
+
+	for (auto& s : m_shaders)
+	{
+		s.useShader();
+		s.setLight(m_light);
+	}
+
 	for (auto& m : m_meshLoaders)
 	{
 		m.initialize();

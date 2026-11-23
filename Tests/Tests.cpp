@@ -34,5 +34,8 @@ namespace Tests
 			Assert::AreEqual(2.0f, position.y);
 			Assert::AreEqual(3.0f, position.z);
 		}
+
 	};
+
+
 }

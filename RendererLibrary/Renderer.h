@@ -10,8 +10,11 @@
 #include "MeshLoaderInstanced.h"
 #include <deque>
 
+#include "RendererIDs.h"
+#include "Renderable.h"
+
 /*
- * 
+ *
  * What objects do we need to render?
  * grass, flowers, trees, ground, leaves.
  *
@@ -21,7 +24,7 @@
  * 	-> instanced
  * 	-> uniforms
  *
- * get entities we change, 
+ * get entities we change,
  *  - changeInstances
  *  - changeMesh
  *  - upload changes
@@ -43,41 +46,17 @@
  * SparseSet<InstanceData> instanceData ---- entityID -> data
  * SparseSet<Transform> transforms ----- entityID -> transform
  *
- * arrays of shared components: 
+ * arrays of shared components:
  * Materials, Meshes, GpuMeshes
  *
  * Future requirements will include: shadows, shadow optimizations
  */
 
-using ShaderID = size_t;
-using ComponentType = size_t;
-using MeshLoaderID = size_t;
-using SubRoutineID = size_t;
-using RenderableID = size_t;
-using RigidbodyID = size_t;
-using RenderPassID = size_t;
 
 enum class RendererState
 {
 	Configure,
 	Draw
-};
-
-struct Renderable
-{
-	RenderableID id{};
-	MeshLoaderID mesh{};
-
-	bool isInstanced = false;
-	bool hasRigidbody = false;
-
-	glm::mat3 textureScale{ 1 };
-	Transform transform{};
-	Material material{};
-
-	RigidbodyID rigidbody{};
-
-	std::function<void()> setupDraw = []() {};
 };
 
 struct RenderPass
@@ -102,8 +81,18 @@ public:
 	void attachRenderableToShaderRenderPass(ShaderID shader, RenderableID renderable);
 	MeshLoaderID getRenderableMesh(RenderableID renderable) { return m_renderables[renderable].mesh; }
 
+	void configureRenderPass(ShaderID shader, bool sendMaps, bool sendMaterials)
+	{
+		auto& renderPass = m_renderPasses[shader];
+		renderPass.sendMaterials = sendMaterials;
+		renderPass.sendMatMaps = sendMaps;
+	}
+
+
+
 	MeshLoaderID loadMesh(const Mesh& mesh);
 	MeshLoaderID loadMeshInstanced(const Mesh& mesh);
+
 	void changeMesh(MeshLoaderID id, Mesh mesh);
 	void changeInstances(MeshLoaderID id, const std::vector<glm::mat4>& instances);
 
@@ -111,14 +100,32 @@ public:
 
 	void draw(Camera& camera);
 
+	void setLight(const Light& light)
+	{
+		m_light = light;
+	}
+
 private:
 	SparseSet<MeshLoader> m_meshLoaders{};
 	SparseSet<MeshLoaderInstanced> m_meshLoadersInstanced{};
 
+	Light m_light{};
+
 	std::vector<Shader> m_shaders{};
+
+	RendererState m_state = RendererState::Configure;
 
 	MeshLoaderID m_nextMesh = 1;
 
 	std::vector<Renderable> m_renderables{};
 	std::vector<RenderPass> m_renderPasses{};
+
+	void sendLightToShaders(const Light& light)
+	{
+		for (auto& shader : m_shaders)
+		{
+			m_light = light;
+			shader.setLight(light);
+		}
+	}
 };

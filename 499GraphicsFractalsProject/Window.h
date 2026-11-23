@@ -7,6 +7,8 @@
 class Window
 {
 private:
+
+	static constexpr int VSync = 0;
 	unsigned int m_width{};
 	unsigned int m_height{};
 	float m_time{};
@@ -44,7 +46,7 @@ public:
 		glfwSetFramebufferSizeCallback(m_window, glfwReshapeCallback);
 		glfwSetErrorCallback(glfwErrorCallback);
 		glfwMakeContextCurrent(m_window);
-		glfwSwapInterval(1);
+		glfwSwapInterval(VSync);
 
 		m_time = static_cast<float>(glfwGetTime());
 	}
@@ -68,7 +70,7 @@ public:
 		glfwSetWindowShouldClose(m_window, shouldClose ? GLFW_TRUE : GLFW_FALSE);
 	}
 
-	static void glfwMouseCallback(GLFWwindow* glfwWindow, int button, int action,  int mods)
+	static void glfwMouseCallback(GLFWwindow* glfwWindow, int button, int action, int mods)
 	{
 		Window* window = static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
 		if (!window) return;

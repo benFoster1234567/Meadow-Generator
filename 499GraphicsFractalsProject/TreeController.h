@@ -128,6 +128,7 @@ public:
 
 			RenderableID treeID = m_renderer.addRenderable(std::move(renderable));
 			m_renderables.push_back(treeID);
+			m_renderer.attachRenderableToShaderRenderPass(m_treeShader, treeID);
 
 			auto leaves = t.getLeafInstances();
 			for (int leaf{ 0 }; leaf < leaves.size(); leaf += leafStride)
@@ -140,7 +141,7 @@ public:
 		m_leafInstances = leafInstancesNew;
 		m_renderer.changeInstances(m_leafID, leafInstancesNew);
 
-		m_leafRendererID = m_renderer.addRenderable(
+		RenderableID leafRenderableID = m_renderer.addRenderable(
 			{ 
 				.mesh = m_leafID,
 				.isInstanced = true,
@@ -148,6 +149,7 @@ public:
 				.transform = Transform(glm::mat4(1))
 			}
 		);
+		m_renderer.attachRenderableToShaderRenderPass(m_leafShader, leafRenderableID);
 	}
 
 	void refreshTrees()
