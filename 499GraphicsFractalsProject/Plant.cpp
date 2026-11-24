@@ -2,73 +2,6 @@
 #include "Renderer.h"
 #include "Renderable.h"
 
-std::vector<float> Plant::getNoiseData(size_t size, float frequency, float time)
-{
-	std::vector<float> data(size * size);
-
-	for (int x{}; x < size; ++x)
-		for (int y{}; y < size; ++y)
-		{
-			static constexpr float placeHolder = 1.0f;
-			data[y * size + x] = s_noiseGlobal.m_noise.compute(glm::vec4{ x,placeHolder,y,time });
-		}
-
-	return data;
-}
-
-GLuint Plant::generateNoiseTexture(size_t size, float frequency, float time)
-{
-	auto data = getNoiseData(size, frequency, time);
-	GLuint tex = 0;
-	glGenTextures(1, &tex);
-	glBindTexture(GL_TEXTURE_2D, tex);
-
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // one row of 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, static_cast<GLsizei>(size), static_cast<GLsizei>(size), 0, GL_RED, GL_FLOAT, (GLfloat*)&data[0]);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	return tex;
-}
-
-void Plant::updateNoiseTexture(size_t size, float frequency, float time)
-{
-	auto data = getNoiseData(size, frequency, time);
-	glBindTexture(GL_TEXTURE_2D, s_noiseGlobal.m_noiseTexId);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_RED, GL_FLOAT, (GLfloat*)&data[0]);
-	glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-//void Plant::destroy()
-//{
-//	for (auto& c : m_components)
-//	{
-//		glDeleteBuffers(1, &c.vbo);
-//		glDeleteBuffers(1, &c.ebo);
-//		glDeleteBuffers(1, &c.instanceVbo);
-//		glDeleteVertexArrays(1, &c.vao);
-//	}
-//	m_components.clear();
-//	m_instanceTransforms.clear();
-//	m_initialized = false;
-//}
-
-//void Plant::refreshInstances()
-//{
-//	for (auto& component : m_components)
-//	{
-//		glBindVertexArray(component.vao);
-//		glBindBuffer(GL_ARRAY_BUFFER, component.instanceVbo);
-//		glBufferData(GL_ARRAY_BUFFER, m_instanceTransforms.size() * sizeof(glm::mat4), m_instanceTransforms.data(), GL_DYNAMIC_DRAW);
-//	}
-//	m_instancesChanged = false;
-//}
-
 std::vector<glm::mat4> Plant::packData(const std::vector<glm::mat4>& transforms, const std::vector<glm::vec3>& colors)
 {
 	auto combine = [](const glm::vec3& c, const glm::mat4& t) -> glm::mat4
@@ -105,27 +38,14 @@ std::vector<glm::mat4> Plant::packData(const std::vector<glm::mat4>& transforms,
 	return packed;
 }
 
-//void Plant::initializeNoise()
-//{
-//	s_noiseGlobal.m_noiseTexId = generateNoiseTexture(NOISE_SIZE, 0.05f, s_noiseGlobal.m_time);
-//}
-//
-//void Plant::bindNoise(const char* name, size_t slot, std::weak_ptr<Shader> shader)
-//{
-//	if (auto s = shader.lock())
-//	{
-//		s->bindTexture(name, slot, s_noiseGlobal.m_noiseTexId);
-//	}
-//}
-
 void Plant::setTransform(glm::mat4 transform)
 {
 	m_transform = transform;
 }
 
-size_t Plant::addComponent(MeshLoaderID mesh, glm::mat4 transform, Material material, ShaderID shader)
+size_t Plant::addComponent(MeshLoaderID mesh, const glm::mat4& transform, Material material, RenderPassID passID)
 {
-	m_components.emplace_back(mesh, transform, material, shader);
+	m_components.emplace_back(mesh, transform, material, passID);
 	return m_components.size() - 1;
 }
 
@@ -239,6 +159,6 @@ void Plant::initialize()
 		};
 
 		auto renderableID = m_renderer.addRenderable(std::move(renderable));
-		m_renderer.attachRenderableToShaderRenderPass(component.m_shader, renderableID);
+		m_renderer.attachRenderableToRenderPass(component.m_renderPass, renderableID);
 	}
 }

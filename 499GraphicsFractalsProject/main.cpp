@@ -26,7 +26,6 @@ extern "C" {
 
 #include "TreeController.h"
 #include "Camera.h"
-#include "ShaderManager.h"
 
 #include "TreeItemPicker.h"
 
@@ -36,38 +35,24 @@ extern "C" {
 
 #include <thread>
 #include "Renderer.h"
+#include "SceneBuilder.h"
 
 Material ground, bark, leaves;
 Material stemMat;
 Material flowerMat;
 Material budMat;
 
-Mesh plane(Plane{}, 10.f);
-
 Camera camera{ 1000,700 };
-//ShaderManager shaderManager{};
-
-ShaderManager::ShaderIndex leavesShader, barkShader, plantShader, instancedShader, leafShader, baseShader, pickerShader;
-
-Plant plant{};
-Plant flower{};
-Plant groundPlane{};
 
 TreeItemPicker treeItems{};
 
-MeshLoader testMesh(Mesh{ Cube{}, 10.f });
-
-constexpr size_t TreeVar = 3;
-
 float cameraSpeed{ 0.f };
 
-MeshLoaderInstanced leafMesh{ Mesh{Plane{}, 0.5f} };
 
-std::unique_ptr<TreeManager> trees{}; // added semicolon
+std::unique_ptr<Renderer> renderer{};
+std::unique_ptr<TreeManager> trees{};
 
 bool loading = false;
-
-std::unique_ptr<RenderedObject> newGround{};
 
 //SIMD?
 #define GLM_FORCE_INTRINSICS
@@ -94,7 +79,6 @@ void generatePlants();
 void display(Window& window, float deltaTime);
 void setUpTreeControls(ImGuiUi& ui, size_t defaultN, float defaultStride, glm::vec2 defaultDelta, size_t defaultLevels);
 
-Renderer renderer{};
 
 bool enableApples{ false };
 
@@ -226,8 +210,8 @@ int main(int argc, char** argv)
 				std::cout << "joined\n";
 				text->setVisibility(false);
 				slider->setVisibility(true);
-				plant.initialize();
-				flower.initialize();
+				//plant.initialize();
+				//flower.initialize();
 			}
 
 			display(window, deltaTime);
@@ -355,18 +339,8 @@ static void assembleMaterials()
 
 void initialize()
 {
-	loading = true;
 
-	baseShader = renderer.addShader("shader.vert", "shader.frag");
-	instancedShader = renderer.addShader("shaderInst.vert", "shader.frag");
-	plantShader = renderer.addShader("plant.vert", "plant.frag");
-	leafShader = renderer.addShader("plant.vert", "leafShader.frag");
-
-
-	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-
+	assembleMaterials();
 	Light light
 	{
 		.position = glm::vec3(20.0f, 30.0f, 20.0f),
@@ -375,7 +349,43 @@ void initialize()
 		.specular = glm::vec3(1.0f)
 	};
 
-	assembleMaterials();
+	SceneBuilderConfig scene
+	{
+		.ground = ground,
+		.bark = bark,
+		.leaves = leaves,
+		.treeleaf = Mesh(Leaf{}),
+		.grass = Mesh{"grass.obj"},
+		.shader = {"shader.vert","shader.frag"},
+		.plantShader = {"plant.vert", "plant.frag"},
+		.instancedShader = {"shaderInst.vert", "shaderInst.frag"},
+		.leafShader = {"plant.vert", "leafShader.frag"},
+		.light = light,
+		.flowerSettings =
+		{
+			.stemMat = stemMat,
+			.flowerMat = flowerMat,
+			.budMat = budMat,
+			.petals = Mesh{"petals.obj"},
+			.stem = Mesh{"stem.obj"},
+			.bud = Mesh{"bud.obj"},
+			.leaf1 = Mesh{"leaf1.obj"},
+			.leaf2 = Mesh{"leaf2.obj"},
+			.leaf3 = Mesh{"leaf3.obj"},
+		}
+	};
+
+	SceneBuilder builder(std::move(scene));
+	
+	auto result = builder.BuildScene();
+
+	trees = std::move(result.trees);
+	renderer = std::move(result.renderer);
+
+	glClearColor(0.72f, 0.75f, 0.92f, 1.0f);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
 
 	glViewport(0, 0, 1000, 700);
 
@@ -383,68 +393,11 @@ void initialize()
 	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(10.f));
 	camera.onWindowResize(static_cast<float>(1000), static_cast<float>(700));
 	camera.reComputeView();
-
-	std::vector<glm::mat4> ts{};
-	ts.push_back(glm::translate(glm::mat4(1), glm::vec3(0, 7, 0)));
-
-	Mesh appleMesh("Apple.obj");
-	appleMesh.unitize({ appleMesh }, true);
-
-	//treeItems.initialize(1000, 700
-	//	, std::make_shared<MeshLoader>(appleMesh)
-	//	, leaves
-	//	, shaderManager.getShader(baseShader).value().lock()
-	//	, shaderManager.getShader(pickerShader).value().lock()  //sorry for this
-	//	, ts, SphereCollider{ .radius = .3f }, 1.f);
-
-	//treeItems.disable();
-	//treeItems.setScale(glm::vec3{ .5f });
-
-	trees = std::make_unique<TreeManager>(renderer, Mesh{ Leaf{} }, bark, bark, baseShader, leafShader);
-
-	leafMesh.initialize();
-
-	trees->setCount(30);
-	trees->setSpacing(10);
-	trees->setPosJitter(10.f);
-	trees->setRotJitter(0.9f);
-	trees->setupTreeInstances();
-	trees->refreshTrees(glm::scale(glm::mat4(1), glm::vec3(0.18f, 0.18f, 0.18f)), 5, 11, 80.f, 1.05f);
-
-	renderer.setLight(light);
-
-	MeshLoaderID planeID = renderer.loadMesh(Mesh(Plane{}, 10.f));
-	auto groundID = renderer.addRenderable({ .mesh = planeID, .isInstanced = false, .hasRigidbody = false, .textureScale = glm::mat3(10.f), .transform = Transform(glm::scale(glm::mat4(1), glm::vec3(5))), .material = ground });
-	renderer.attachRenderableToShaderRenderPass(baseShader, groundID);
-	renderer.configureRenderPass(baseShader, true, true);
-	renderer.initialize();
-
-
-}
-
-void setupScene()
-{
-	//plant.addComponent(Mesh{ "grass.obj" }, glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3(0.5, .3, .5)), ground, shaderManager.getShader(plantShader).value());
-
-	glm::mat4 flowerTransform{ 1 };
-
-
-	plant.unitize();
-	flower.unitize();
-	plant.setTransform(glm::scale(glm::mat4(1), glm::vec3(.5f, .5f, .5f)));
-
-	treeItems.createKinematicRigidbody(glm::vec3(0, -1.f, 0), glm::vec3(50.f, 1.f, 50.f));
-
-	groundPlane.addInstanceTransform(glm::translate(glm::mat4(1), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3{ 10 }));
-	groundPlane.initialize();
 }
 
 void generatePlants()
 {
 	auto now = std::chrono::steady_clock::now();
-
-	plant.arrangePlantsUsingFractal(7, 7, 18);
-	flower.arrangePlantsUsingFractal(7, 5, 18);
 
 	auto duration = std::chrono::steady_clock::now() - now;
 	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
@@ -460,17 +413,12 @@ void display(Window& window, float deltaTime)
 {
 	static float angle = 0.f;
 
-	Plant::tick(deltaTime * 0.5f);
 	angle += cameraSpeed * deltaTime;
 
 	camera.setViewAngleAroundTarget(glm::radians(30.f), glm::radians(angle));
 	camera.reComputeView();
-	//shaderManager.uploadCameraUniforms(camera, "view", "projection", "viewPosition");
-	//shaderManager.useShader(instancedShader);
-
-	groundPlane.draw();
-
-	renderer.draw(camera);
+	renderer->updateNoise(deltaTime);
+	renderer->draw(camera);
 
 	//Plant::updateNoiseTexture();
 	//plant.draw();

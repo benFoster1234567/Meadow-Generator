@@ -46,6 +46,8 @@ void main()
 	float noiseValueX = texture(noiseTexture, uvX).r;
 	float noiseValueZ = texture(noiseTexture, uvZ).r;
 
+	//out_color = vec3(noiseValueX, noiseValueX, noiseValueX);
+
 	float shearX = (noiseValueX - 0.5) * .5;
 	float shearZ = (noiseValueZ - 1) * .5;
 

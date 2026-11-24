@@ -49,7 +49,7 @@ void main()
 	vec3 ambient = material.ambient * light.ambient * c;
 	vec3 specular = Ks * light.specular * material.specular;
 	vec3 diffuse = light.diffuse * material.diffuse * c * Kd * 2;
-
+	//out_Color = vec4(in_Color,1);
 	out_Color = vec4((ambient + diffuse + specular), 1.0);
 
 }

@@ -28,6 +28,28 @@ public:
 		glUseProgram(m_program);
 	}
 
+	GLuint registerSubroutineVertexShader(const char* name) const
+	{
+		return glGetSubroutineIndex(m_program, GL_VERTEX_SHADER, name);
+	}
+
+	void selectSubroutineVertex(GLuint index, GLsizei count)
+	{
+		glUniformSubroutinesuiv(GL_VERTEX_SHADER, count, &index);
+	}
+
+	GLuint registerSubroutineFragmentShader(const char* name) const
+	{
+		return glGetSubroutineIndex(m_program, GL_FRAGMENT_SHADER, name);
+	}
+
+	void selectSubroutineFragment(GLuint index, GLsizei count)
+	{
+		glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, count, &index);
+	}
+
+
+
 	void setInt(const char* name, GLint value) const
 	{
 		glUniform1i(location(name), value);
@@ -92,14 +114,21 @@ public:
 		glBindTexture(GL_TEXTURE_2D, material.specularMap);
 	}
 
+	
+
 	bool loadShader(std::string_view vertexFilePath, std::string_view fragmentFilePath);
+
+	bool loadShader(std::pair<std::string_view, std::string_view> filenames)
+	{
+		return loadShader(filenames.first, filenames.second);
+	}
 
 private:
 	GLuint m_program{ 0 };
 	GLboolean m_isLoaded{ false };
 	void destroy();
 
-	mutable std::unordered_map<std::string, GLint> m_locations;
+	mutable std::unordered_map<std::string, GLint> m_locations{};
 
 	GLint location(const char* name) const
 	{

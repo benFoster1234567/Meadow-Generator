@@ -3,6 +3,7 @@
 #include <stack>
 #include "SparseSet.h"
 #include "Noise.h"
+#include "Random.h"
 #include <optional>
 
 struct VertexLayer
@@ -450,7 +451,7 @@ public:
 
 		while (!stack.empty())
 		{
-			const auto [lvl, cnt] = stack.back();
+			const auto& [lvl, cnt] = stack.back();
 			stack.pop_back();
 
 			if (lvl < 1) continue;

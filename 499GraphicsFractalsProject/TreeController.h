@@ -29,8 +29,8 @@ class TreeManager
 	}m_treeMeshSettings{};
 
 	Renderer& m_renderer;
-	ShaderID m_treeShader{};
-	ShaderID m_leafShader{};
+	RenderPassID m_treePass{};
+	RenderPassID m_leafPass{};
 	MeshLoaderID m_leafID{};
 	RenderableID m_leafRendererID{};
 
@@ -55,13 +55,13 @@ public:
 		, const Mesh& leafMesh
 		, const Material& treeMat
 		, const Material& leafMat
-		, ShaderID treeShader
-		, ShaderID leafShader
+		, RenderPassID treePass
+		, RenderPassID leafPass
 	)
 		:
 		m_renderer(renderer)
-		, m_treeShader(treeShader)
-		, m_leafShader(leafShader)
+		, m_treePass(treePass)
+		, m_leafPass(leafPass)
 		, m_leafID(renderer.loadMeshInstanced(leafMesh))
 		, m_treeMat(treeMat)
 		, m_leafMat(leafMat)
@@ -128,7 +128,7 @@ public:
 
 			RenderableID treeID = m_renderer.addRenderable(std::move(renderable));
 			m_renderables.push_back(treeID);
-			m_renderer.attachRenderableToShaderRenderPass(m_treeShader, treeID);
+			m_renderer.attachRenderableToRenderPass(m_treePass, treeID);
 
 			auto leaves = t.getLeafInstances();
 			for (int leaf{ 0 }; leaf < leaves.size(); leaf += leafStride)
@@ -149,7 +149,7 @@ public:
 				.transform = Transform(glm::mat4(1))
 			}
 		);
-		m_renderer.attachRenderableToShaderRenderPass(m_leafShader, leafRenderableID);
+		m_renderer.attachRenderableToRenderPass(m_leafPass, leafRenderableID);
 	}
 
 	void refreshTrees()

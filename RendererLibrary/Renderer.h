@@ -12,6 +12,8 @@
 
 #include "RendererIDs.h"
 #include "Renderable.h"
+#include "AnimatedNoise.h"
+
 
 /*
  *
@@ -52,6 +54,7 @@
  * Future requirements will include: shadows, shadow optimizations
  */
 
+#define BIT(x) (1U << (x))
 
 enum class RendererState
 {
@@ -59,11 +62,27 @@ enum class RendererState
 	Draw
 };
 
+enum class RenderPassFlags : uint8_t
+{
+	None = 0,
+	SendAnimatedNoise = BIT(0),
+	SendMaps = BIT(1),
+	SendMaterials = BIT(2),
+	SendTextureScale = BIT(3)
+};
+
+constexpr RenderPassFlags operator&(RenderPassFlags a, RenderPassFlags b) noexcept {
+	return static_cast<RenderPassFlags>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+}
+
+constexpr RenderPassFlags operator|(RenderPassFlags a, RenderPassFlags b) noexcept {
+	return static_cast<RenderPassFlags>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+}
+
 struct RenderPass
 {
 	ShaderID shader{};
-	bool sendMatMaps{};
-	bool sendMaterials{};
+	RenderPassFlags flags{RenderPassFlags::None};
 	std::vector<RenderableID> renderables{};
 };
 
@@ -73,22 +92,26 @@ public:
 	static constexpr size_t MaxSharedComponentCount = 100;
 
 	ShaderID addShader(std::string_view vertexFile, std::string_view fragFile);
+	ShaderID addShader(std::pair<std::string_view, std::string_view> filenames)
+	{
+		return addShader(filenames.first, filenames.second);
+	}
 
 	RenderableID addRenderable(Renderable&& renderable);
 	void setTransform(RenderableID id, const Transform& transform);
 	Transform& getTransform(RenderableID id);
 
-	void attachRenderableToShaderRenderPass(ShaderID shader, RenderableID renderable);
+	void attachRenderableToRenderPass(RenderPassID pass, RenderableID renderable);
 	MeshLoaderID getRenderableMesh(RenderableID renderable) { return m_renderables[renderable].mesh; }
 
-	void configureRenderPass(ShaderID shader, bool sendMaps, bool sendMaterials)
+	RenderPassID addRenderPass(ShaderID shader, RenderPassFlags flags = RenderPassFlags::SendMaterials)
 	{
-		auto& renderPass = m_renderPasses[shader];
-		renderPass.sendMaterials = sendMaterials;
-		renderPass.sendMatMaps = sendMaps;
+		RenderPassID id = m_renderPasses.size();
+		RenderPass renderPass{ .shader = shader, .flags = flags};
+		m_renderPasses.push_back(renderPass);
+
+		return id;
 	}
-
-
 
 	MeshLoaderID loadMesh(const Mesh& mesh);
 	MeshLoaderID loadMeshInstanced(const Mesh& mesh);
@@ -99,7 +122,10 @@ public:
 	void initialize();
 
 	void draw(Camera& camera);
-
+	void updateNoise(float deltaTime)
+	{
+		m_noise.updateNoiseTexture(deltaTime);
+	}
 	void setLight(const Light& light)
 	{
 		m_light = light;
@@ -114,9 +140,9 @@ private:
 	std::vector<Shader> m_shaders{};
 
 	RendererState m_state = RendererState::Configure;
-
+	AnimatedNoise m_noise{};
+	GLuint m_noiseMap{};
 	MeshLoaderID m_nextMesh = 1;
-
 	std::vector<Renderable> m_renderables{};
 	std::vector<RenderPass> m_renderPasses{};
 

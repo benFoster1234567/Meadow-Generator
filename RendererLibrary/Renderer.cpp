@@ -4,8 +4,6 @@ ShaderID Renderer::addShader(std::string_view vertexFile, std::string_view fragF
 {
 	ShaderID id = m_shaders.size();
 	m_shaders.emplace_back();
-	m_renderPasses.emplace_back();
-	m_renderPasses.back().shader = id;
 
 	if (!m_shaders.back().loadShader(vertexFile, fragFile))
 	{
@@ -35,9 +33,9 @@ Transform& Renderer::getTransform(RenderableID id)
 	return m_renderables.at(id).transform;
 }
 
-void Renderer::attachRenderableToShaderRenderPass(ShaderID shader, RenderableID renderable)
+void Renderer::attachRenderableToRenderPass(RenderPassID pass, RenderableID renderable)
 {
-	m_renderPasses[shader].renderables.push_back(renderable);
+	m_renderPasses[pass].renderables.push_back(renderable);
 }
 
 MeshLoaderID Renderer::loadMesh(const Mesh& mesh)
@@ -85,10 +83,13 @@ void Renderer::changeInstances(MeshLoaderID id, const std::vector<glm::mat4>& in
 
 void Renderer::initialize()
 {
+
 	if (m_state >= RendererState::Draw)
 	{
 		throw std::runtime_error("Renderer has already been initialized");
 	}
+
+	m_noiseMap = m_noise.generateNoiseTexture(32, 12.f);
 
 	for (auto& s : m_shaders)
 	{
@@ -119,6 +120,10 @@ void Renderer::draw(Camera& camera)
 		shader.setMat4("projection", camera.projection());
 		shader.setVec3("viewPosition", camera.eye());
 
+		bool sendMaterials = (RenderPassFlags::SendMaterials & renderPass.flags) != RenderPassFlags::None;
+		bool sendMaps = (RenderPassFlags::SendMaps & renderPass.flags) != RenderPassFlags::None;
+		bool sendNoise = (RenderPassFlags::SendAnimatedNoise & renderPass.flags) != RenderPassFlags::None;
+
 		for (size_t rid = 0; rid < renderPass.renderables.size(); ++rid)
 		{
 			Renderable& renderable = m_renderables[renderPass.renderables[rid]];
@@ -127,9 +132,14 @@ void Renderer::draw(Camera& camera)
 
 			shader.setMat4("model", renderable.transform.matrix());
 
-			if (renderPass.sendMaterials)
+			if (sendNoise)
 			{
-				shader.setMaterial(renderable.material, renderPass.sendMatMaps);
+				shader.bindTexture("noiseTexture", 0, m_noiseMap);
+			}
+
+			if (sendMaterials)
+			{
+				shader.setMaterial(renderable.material, sendMaps);
 				shader.setMat3("texture", renderable.textureScale);
 			}
 

@@ -160,6 +160,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Plane.cpp" />
     <ClCompile Include="Plant.cpp" />
+    <ClCompile Include="SceneBuilder.cpp" />
     <ClCompile Include="TreeItemPicker.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -174,6 +175,7 @@
     <None Include="shaderInst.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AnimatedNoise.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collider.h" />
     <ClInclude Include="Components.h" />
@@ -189,11 +191,10 @@
     <ClInclude Include="Plane.h" />
     <ClInclude Include="Plant.h" />
     <ClInclude Include="Mesh.h" />
-    <ClInclude Include="OpenGL.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="RenderedObject.h" />
+    <ClInclude Include="SceneBuilder.h" />
     <ClInclude Include="Shader.h" />
-    <ClInclude Include="ShaderManager.h" />
     <ClInclude Include="SparseSet.h" />
     <ClInclude Include="Transform.h" />
     <ClInclude Include="TreeController.h" />
