@@ -20,7 +20,7 @@ SceneBuilderResult SceneBuilder::BuildScene()
 	auto plantPass = r->addRenderPass(plantShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendAnimatedNoise);
 	auto groundPass = r->addRenderPass(groundShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendMaps | RenderPassFlags::SendTextureScale);
 	auto treePass = r->addRenderPass(groundShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendMaps | RenderPassFlags::SendTextureScale);
-	auto leafPass = r->addRenderPass(leafShader);
+	auto leafPass = r->addRenderPass(leafShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendAnimatedNoise );
 
 	setupLight(r.get());
 	setupPlants(r.get(), plantPass);
@@ -62,7 +62,7 @@ void SceneBuilder::setupPlants(Renderer* renderer, RenderPassID plantPass)
 
 	m_flower->arrangePlantsUsingFractal(5, 5, 18);
 
-	m_grass->arrangePlantsUsingFractal(6, 5, 18);
+	m_grass->arrangePlantsUsingFractal(7, 6, 18);
 	m_grass->addComponent(grass, glm::translate(glm::mat4(1.0f), { 0,0,0 }) * glm::scale(glm::mat4(1.f), glm::vec3(0.5, .3, .5)), m_config.ground, plantPass);
 	m_grass->setTransform(glm::scale(glm::mat4(1), glm::vec3(.5f, .5f, .5f)));
 

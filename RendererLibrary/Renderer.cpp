@@ -134,7 +134,7 @@ void Renderer::draw(Camera& camera)
 
 			if (sendNoise)
 			{
-				shader.bindTexture("noiseTexture", 0, m_noiseMap);
+				shader.bindTexture("noiseTexture", 2, m_noiseMap);
 			}
 
 			if (sendMaterials)
