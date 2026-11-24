@@ -146,6 +146,11 @@ void Plant::initialize()
 {
 	for (auto& component : m_components)
 	{
+		if (component.colors.empty())
+		{
+			component.colors.push_back(component.m_material.diffuse);
+		}
+
 		auto packed = packData(m_instanceTransforms, component.colors); //very slow
 		m_renderer.changeInstances(component.m_meshID, packed);
 
