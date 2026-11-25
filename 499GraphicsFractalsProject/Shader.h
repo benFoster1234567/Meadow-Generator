@@ -8,13 +8,66 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <vector>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/ext/matrix_float4x4.hpp>
 
 #include "Light.h"
 
+class SubroutineConfig
+{
+	GLint m_location{};
+	GLuint m_index{};
+
+public:
+	SubroutineConfig(GLint location, GLuint index) : m_location(location), m_index(index) {}
+
+	GLint getLocation() const { return m_location; }
+	GLuint getIndex() const { return m_index; }
+};
+
 class Shader
 {
+
+	inline static void registerSubroutine(
+		GLenum shaderType,
+		GLuint& program,
+		std::initializer_list<std::string_view> uniformNames,
+		std::vector<GLuint>& indices,
+		std::unordered_map<std::string, GLint>& locations)
+	{
+		glGetProgramStageiv(program, shaderType, GL_ACTIVE_SUBROUTINE_UNIFORMS, &activeUniformCount);
+		if (activeUniformCount < 0 || static_cast<size_t>(activeUniformCount) != uniformNames.size())
+		{
+			throw std::logic_error("Mismatch between active subroutine uniform count and provided names.");
+		}
+
+		const size_t size = static_cast<size_t>(activeUniformCount);
+		indices.assign(size, GL_INVALID_INDEX);
+		//locations.clear();
+		//locations.reserve(size);
+
+		for (std::string_view name : uniformNames)
+		{
+			std::string nameStr(name);
+			GLint loc = glGetSubroutineUniformLocation(program, shaderType, nameStr.c_str());
+
+			if (loc < 0)
+			{
+				throw std::invalid_argument("Subroutine uniform not found or optimized out: " + nameStr);
+			}
+
+			indices.at(static_cast<size_t>(loc)) = GL_INVALID_INDEX;
+
+			if (!locations.emplace(std::move(nameStr), loc).second)
+			{
+				throw std::invalid_argument("Duplicate subroutine uniform name registered.");
+			}
+		}
+	}
+
+
+
 public:
 	Shader() = default;
 	Shader(const Shader&) = delete;
@@ -28,27 +81,96 @@ public:
 		glUseProgram(m_program);
 	}
 
-	GLuint registerSubroutineVertexShader(const char* name) const
+	//subroutines-----------------------------------------------------
+
+	//for vertex shader-----------------------------------------------
+	void registerSubroutineVertexShader(std::initializer_list<std::string_view> uniformNames)
 	{
-		return glGetSubroutineIndex(m_program, GL_VERTEX_SHADER, name);
+		if (m_vertSubroutinesLoaded) throw std::logic_error("subroutine names already uploaded");
+
+		registerSubroutine(
+			GL_VERTEX_SHADER,
+			m_program,
+			uniformNames,
+			m_subroutineIndicesVertex,
+			m_locations);
+
+		m_vertSubroutinesLoaded = true;
 	}
 
-	void selectSubroutineVertex(GLuint index, GLsizei count)
+	void setSubroutineVertex(std::string_view subroutineName, std::string_view uniformName)
 	{
-		glUniformSubroutinesuiv(GL_VERTEX_SHADER, count, &index);
+		GLint location = m_locations[std::string(subroutineName)];
+		m_subroutineIndicesVertex[location] = glGetSubroutineIndex(m_program, GL_VERTEX_SHADER, uniformName.data());
 	}
 
-	GLuint registerSubroutineFragmentShader(const char* name) const
+	void setSubroutineVertex(const SubroutineConfig& selection)
 	{
-		return glGetSubroutineIndex(m_program, GL_FRAGMENT_SHADER, name);
+		m_subroutineIndicesVertex[selection.getLocation()] = selection.getIndex();
 	}
 
-	void selectSubroutineFragment(GLuint index, GLsizei count)
+	SubroutineConfig getVertexSubroutineInfoForFastLookup(std::string_view subroutineName, std::string_view uniformName)
 	{
-		glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, count, &index);
+		GLint location = m_locations[std::string(subroutineName)];
+		auto index = glGetSubroutineIndex(m_program, GL_VERTEX_SHADER, uniformName.data());
+		return { location, index };
 	}
 
 
+
+	//for fragment shader ----------------------------------------------------------
+
+	void registerSubroutineFragmentShader(std::initializer_list<std::string_view> uniformNames)
+	{
+		if (m_fragSubroutinesLoaded) throw std::logic_error("subroutine names already uploaded");
+
+		registerSubroutine(
+			GL_FRAGMENT_SHADER,
+			m_program,
+			uniformNames,
+			m_subroutineIndicesFragment,
+			m_locations);
+
+		m_fragSubroutinesLoaded = true;
+	}
+
+	void setSubroutineFragment(std::string_view subroutineName, std::string_view uniformName)
+	{
+		GLint location = m_locations[std::string(subroutineName)];
+		m_subroutineIndicesFragment[location] = glGetSubroutineIndex(m_program, GL_FRAGMENT_SHADER, uniformName.data());
+	}
+
+	void setSubroutineFragment(const SubroutineConfig& selection)
+	{
+		m_subroutineIndicesFragment[selection.getLocation()] = selection.getIndex();
+	}
+
+	SubroutineConfig getFragmentSubroutineInfoForFastLookup(std::string_view subroutineName, std::string_view uniformName)
+	{
+		GLint location = m_locations[std::string(subroutineName)];
+		auto index = glGetSubroutineIndex(m_program, GL_FRAGMENT_SHADER, uniformName.data());
+		return { location, index };
+	}
+
+
+
+	void uploadSubroutines()
+	{
+		if (m_fragSubroutinesLoaded)
+		{
+			glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, m_subroutineIndicesFragment.size(), m_subroutineIndicesFragment.data());
+		}
+
+		if (m_vertSubroutinesLoaded)
+		{
+			glUniformSubroutinesuiv(GL_VERTEX_SHADER, m_subroutineIndicesVertex.size(), m_subroutineIndicesVertex.data());
+		}
+	}
+
+
+
+
+	//uniforms-----------------------------------------------------
 
 	void setInt(const char* name, GLint value) const
 	{
@@ -114,7 +236,7 @@ public:
 		glBindTexture(GL_TEXTURE_2D, material.specularMap);
 	}
 
-	
+	//load from file --------------------------------------------------------------
 
 	bool loadShader(std::string_view vertexFilePath, std::string_view fragmentFilePath);
 
@@ -126,6 +248,12 @@ public:
 private:
 	GLuint m_program{ 0 };
 	GLboolean m_isLoaded{ false };
+	GLboolean m_fragSubroutinesLoaded{ false };
+	GLboolean m_vertSubroutinesLoaded{ false };
+
+	std::vector<GLuint> m_subroutineIndicesVertex{};
+	std::vector<GLuint> m_subroutineIndicesFragment{};
+
 	void destroy();
 
 	mutable std::unordered_map<std::string, GLint> m_locations{};
@@ -144,8 +272,6 @@ private:
 		m_locations.emplace(name, loc);
 		return loc;
 	}
-
-
 	static std::string readFile(std::string_view filePath)
 	{
 		std::ifstream fileIn(filePath.data());
@@ -165,7 +291,6 @@ private:
 
 		return ss.str();
 	}
-
 	static GLuint compileShader(const char* v_shaderString, const char* f_shaderString)
 	{
 		GLint success;

@@ -23,9 +23,9 @@ class TreeItemPicker
 	Material m_material{};
 	Collider m_collider;
 
-	bool m_enabled{true};
+	bool m_enabled{ true };
 
-	glm::vec3 m_scale{1};
+	glm::vec3 m_scale{ 1 };
 
 	BtPhysicsEngine m_physics{};
 	PickingTexture m_pickingTexture{};

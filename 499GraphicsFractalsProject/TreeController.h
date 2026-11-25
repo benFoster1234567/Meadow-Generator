@@ -41,7 +41,7 @@ class TreeManager
 
 	glm::mat4 worldTransform{ 1.0f };
 	glm::mat4 localTransform{ 1.0f };
-	
+
 	Noise4D m_noise{};
 	float time{ 0.f };
 
@@ -99,7 +99,11 @@ public:
 
 			float px = m_treeInstanceSettings.spacing * static_cast<float>(i % sideLen - offset);
 			float pz = m_treeInstanceSettings.spacing * static_cast<float>(i / sideLen - offset);
-			glm::mat4 translateTree = glm::translate(glm::mat4(1), glm::vec3{ px, m_treeInstanceSettings.yOffset, pz });
+
+			glm::vec3 rOffset = Random::nextNormalizedVector();
+			rOffset *= 4;
+			rOffset.y = 0;
+			glm::mat4 translateTree = glm::translate(glm::mat4(1), rOffset + glm::vec3{ px, m_treeInstanceSettings.yOffset, pz });
 
 			glm::mat4 treeTransform = translateTree * rotTree;
 
@@ -117,13 +121,13 @@ public:
 			MeshLoaderID mesh = m_renderer.loadMesh(t.getMesh());
 
 			Renderable renderable
-			{ 
+			{
 				.mesh = mesh
 				, .isInstanced = false
 				, .hasRigidbody = false
 				, .textureScale = 0.5f
 				, .transform = Transform(treeTransform)
-				, .material = m_treeMat 
+				, .material = m_treeMat
 			};
 
 			RenderableID treeID = m_renderer.addRenderable(std::move(renderable));
@@ -142,11 +146,12 @@ public:
 		m_renderer.changeInstances(m_leafID, leafInstancesNew);
 
 		RenderableID leafRenderableID = m_renderer.addRenderable(
-			{ 
+			{
 				.mesh = m_leafID,
 				.isInstanced = true,
 				.hasRigidbody = false,
-				.transform = Transform(glm::mat4(1))
+				.transform = Transform(glm::mat4(1)),
+				.material = m_leafMat
 			}
 		);
 		m_renderer.attachRenderableToRenderPass(m_leafPass, leafRenderableID);

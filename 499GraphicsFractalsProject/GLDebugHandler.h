@@ -56,7 +56,7 @@ public:
 #endif
 	}
 
-	void log(DebugMsgType type, const std::string& message)
+	void log(DebugMsgType type, std::string_view message)
 	{
 		if (type >= DebugMsgType::Count)
 		{
@@ -67,7 +67,7 @@ public:
 			m_buffer << message << "\n";
 	}
 
-	void log(const std::string& message)
+	void log(std::string_view message)
 	{
 		log(DebugMsgType::Default, message);
 	}

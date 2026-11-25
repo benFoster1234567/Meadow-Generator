@@ -106,10 +106,69 @@ void Renderer::initialize()
 	{
 		m.initialize();
 	}
+
+	setupShadows();
+}
+
+void Renderer::drawRenderable(Renderable& renderable, Shader& shader, RenderPassFlags flags)
+{
+	bool sendMaterials = (RenderPassFlags::SendMaterials & flags) != RenderPassFlags::None;
+	bool sendMaps = (RenderPassFlags::SendMaps & flags) != RenderPassFlags::None;
+	bool sendNoise = (RenderPassFlags::SendAnimatedNoise & flags) != RenderPassFlags::None;
+
+	if (sendNoise)
+	{
+		shader.bindTexture("noiseTexture", 2, m_noiseMap);
+	}
+
+	if (sendMaterials)
+	{
+		shader.setMaterial(renderable.material, sendMaps);
+		shader.setMat3("texture", renderable.textureScale);
+	}
+
+	if (renderable.isInstanced)
+	{
+		m_meshLoadersInstanced.get(renderable.mesh).draw();
+	}
+
+	else
+	{
+		m_meshLoaders.get(renderable.mesh).draw();
+	}
 }
 
 void Renderer::draw(Camera& camera)
 {
+	////shadow pass
+	//if (m_shadowPass.isSetup)
+	//{
+	//	auto& shader = m_shaders[m_shadowPass.shadowShader];
+	//	m_shadowPass.shadowFBO.bind();
+	//	m_shadowPass.shadowFBO.clearBuffer();
+	//	m_shadowPass.shadowFBO.setViewport();
+	//	//shader.selectSubroutineFragment(m_subroutines.recordDepth, 1);
+
+	//	m_shadowPass.shadowFBO.enableCullFace();
+
+	//	shader.useShader();
+
+	//	shader.setMat4("view", camera.view());
+	//	shader.setMat4("projection", camera.projection());
+	//	shader.setVec3("viewPosition", camera.eye());
+
+	//	for (auto& renderable : m_renderables)
+	//	{
+	//		shader.setMat4("model", renderable.transform.matrix());
+	//		drawRenderable(renderable, shader, RenderPassFlags::None);
+	//	}
+
+	//	glFlush();
+	//	//shader.selectSubroutineFragment(m_subroutines.renderPass, 1);
+	//}
+	if (m_shadowPass.isSetup) doShadowPass(camera);
+
+	//renderPass
 	for (size_t rp = 0; rp < m_renderPasses.size(); ++rp)
 	{
 		const RenderPass& renderPass = m_renderPasses[rp];
@@ -120,38 +179,12 @@ void Renderer::draw(Camera& camera)
 		shader.setMat4("projection", camera.projection());
 		shader.setVec3("viewPosition", camera.eye());
 
-		bool sendMaterials = (RenderPassFlags::SendMaterials & renderPass.flags) != RenderPassFlags::None;
-		bool sendMaps = (RenderPassFlags::SendMaps & renderPass.flags) != RenderPassFlags::None;
-		bool sendNoise = (RenderPassFlags::SendAnimatedNoise & renderPass.flags) != RenderPassFlags::None;
-
 		for (size_t rid = 0; rid < renderPass.renderables.size(); ++rid)
 		{
 			Renderable& renderable = m_renderables[renderPass.renderables[rid]];
-
 			renderable.setupDraw();
-
 			shader.setMat4("model", renderable.transform.matrix());
-
-			if (sendNoise)
-			{
-				shader.bindTexture("noiseTexture", 2, m_noiseMap);
-			}
-
-			if (sendMaterials)
-			{
-				shader.setMaterial(renderable.material, sendMaps);
-				shader.setMat3("texture", renderable.textureScale);
-			}
-
-			if (renderable.isInstanced)
-			{
-				m_meshLoadersInstanced.get(renderable.mesh).draw();
-			}
-
-			else
-			{
-				m_meshLoaders.get(renderable.mesh).draw();
-			}
+			drawRenderable(renderable, shader, renderPass.flags);
 		}
 	}
 }

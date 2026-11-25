@@ -158,7 +158,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Plane.cpp" />
     <ClCompile Include="Plant.cpp" />
     <ClCompile Include="SceneBuilder.cpp" />
     <ClCompile Include="TreeItemPicker.cpp" />
@@ -175,6 +174,7 @@
     <None Include="shaderInst.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\RendererLibrary\ShadowFBO.h" />
     <ClInclude Include="AnimatedNoise.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collider.h" />
@@ -188,11 +188,9 @@
     <ClInclude Include="Noise.h" />
     <ClInclude Include="Physics.h" />
     <ClInclude Include="PickingTexture.h" />
-    <ClInclude Include="Plane.h" />
     <ClInclude Include="Plant.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Random.h" />
-    <ClInclude Include="RenderedObject.h" />
     <ClInclude Include="SceneBuilder.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="SparseSet.h" />

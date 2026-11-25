@@ -110,10 +110,10 @@ private:
 				m_indices.push_back(ur);
 				m_indices.push_back(dl);
 				m_indices.push_back(dr);
-
-
 			}
 		}
+
+
 	}
 
 	VertexLayer addLayer(std::optional<VertexLayer> parent, const glm::mat4& transform, float noise, float textureHeight)
@@ -213,80 +213,6 @@ public:
 		return m_leafInstances;
 	}
 
-	void generateTreeWithNoise(const glm::mat4& local, int levels, int n, float stride)
-	{
-		//local * up * Rnew?
-
-		//using namespace glm;
-
-		struct StackFrame
-		{
-			VertexLayer parent;
-			glm::mat4 localRot;
-			glm::mat4 localPos;
-			float girth;
-			float stride;
-			int level;
-			int n;
-		};
-
-		std::vector<StackFrame> stack{};
-
-		float state = 0.0f;
-		constexpr float stateDelta = 0.01f;
-		constexpr float xPlane = 0.f;
-		constexpr float yPlane = 20.f;
-		constexpr float zPlane = 40.f;
-
-		VertexLayer layer0 = addLayer(std::nullopt, local, 1, 10);
-
-		stack.push_back({ .parent = layer0, .localRot = 1, .localPos = local, .girth = 1, .stride = 1,.level = levels,.n = n });
-
-		float theta = 0.0f;
-		float thetaDelta = 45.0f;
-
-		constexpr std::array<glm::vec3, 4> dir =
-		{
-			glm::vec3{ 1,  1.0f, 1},
-			glm::vec3{ -1, 1.0f, -1},
-			glm::vec3{ -1, 1.0f, 1},
-			glm::vec3{ 1,  1.0f, -1}
-		};
-
-		glm::vec3 axisRot{};
-		while (!stack.empty())
-		{
-
-			state += stateDelta;
-			theta += thetaDelta;
-
-			StackFrame sf = stack.back();
-			stack.pop_back();
-
-			VertexLayer parent = addLayer(sf.parent, sf.localRot * sf.localPos, 1, 10);
-
-			glm::mat4 translateM(1);
-
-			for (int s{}; s < sf.n; ++s)
-			{
-				translateM = glm::translate(glm::mat4(translateM), glm::vec3(0, stride, 0));
-
-				parent = addLayer(parent, sf.localRot * translateM, 1, 10);
-
-				if (s > sf.n * 2 / 3)
-				{
-					//branch out 
-
-					for (const auto& d : dir)
-					{
-						glm::mat4 rot = sf.localRot * glm::mat4(createLookatMatrix(d));
-						stack.push_back(StackFrame{ .parent = parent, .localRot = rot, .localPos = sf.localRot * translateM * rot,.girth = 1, .stride = 1 });
-					}
-				}
-			}
-		}
-	}
-
 	void generateExampleTree(glm::mat4 local, int levels, int n, glm::vec3 scale, float deltaX, float deltaZ, float stride, float noiseScale, float textureHeight)
 	{
 		cleanup();
@@ -358,8 +284,8 @@ public:
 
 				glm::vec3 position = { sf.local[3] };
 
-				float offsetX = m_noise.compute(glm::vec4(10.f*position, 0.f));
-				float offsetY = m_noise.compute(glm::vec4(10.f*position, 10.f));
+				float offsetX = m_noise.compute(glm::vec4(10.f * position, 0.f));
+				float offsetY = m_noise.compute(glm::vec4(10.f * position, 10.f));
 
 				glm::mat4 offsetMat = glm::translate(glm::mat4(1), glm::vec3{ offsetX, 0,offsetY });
 

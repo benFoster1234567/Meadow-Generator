@@ -17,10 +17,12 @@ SceneBuilderResult SceneBuilder::BuildScene()
 	auto plantShader = r->addShader(m_config.plantShader);
 	auto groundShader = r->addShader(m_config.shader);
 	auto leafShader = r->addShader(m_config.leafShader);
-	auto plantPass = r->addRenderPass(plantShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendAnimatedNoise);
+	auto plantPass = r->addRenderPass(plantShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendMaps | RenderPassFlags::SendAnimatedNoise);
 	auto groundPass = r->addRenderPass(groundShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendMaps | RenderPassFlags::SendTextureScale);
 	auto treePass = r->addRenderPass(groundShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendMaps | RenderPassFlags::SendTextureScale);
-	auto leafPass = r->addRenderPass(leafShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendAnimatedNoise );
+	auto leafPass = r->addRenderPass(leafShader, RenderPassFlags::SendMaterials | RenderPassFlags::SendAnimatedNoise);
+
+	r->attachShadowSetup(groundPass);
 
 	setupLight(r.get());
 	setupPlants(r.get(), plantPass);

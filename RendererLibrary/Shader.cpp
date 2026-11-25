@@ -1,14 +1,29 @@
 #include "Shader.h"
 
-Shader::Shader(Shader&& other) noexcept
-	: m_isLoaded(std::exchange(other.m_isLoaded, 0))
-	, m_program(std::exchange(other.m_program, 0))
+Shader::Shader(Shader&& o) noexcept
+	: m_program(std::exchange(o.m_program, 0))
+	, m_isLoaded(std::exchange(o.m_isLoaded, false))
+	, m_fragSubroutinesLoaded(std::exchange(o.m_fragSubroutinesLoaded, false))
+	, m_vertSubroutinesLoaded(std::exchange(o.m_vertSubroutinesLoaded, false))
+	, m_subroutineIndicesVertex(std::move(o.m_subroutineIndicesVertex))
+	, m_subroutineIndicesFragment(std::move(o.m_subroutineIndicesFragment))
+	, m_locations(std::move(o.m_locations))
 {
 }
 
-Shader& Shader::operator=(Shader&& other) noexcept
+Shader& Shader::operator=(Shader&& o) noexcept
 {
-	m_program = std::exchange(other.m_program, 0);
+	if (this != &o)
+	{
+		destroy();
+		m_program = std::exchange(o.m_program, 0);
+		m_isLoaded = std::exchange(o.m_isLoaded, false);
+		m_fragSubroutinesLoaded = o.m_fragSubroutinesLoaded;
+		m_vertSubroutinesLoaded = o.m_vertSubroutinesLoaded;
+		m_subroutineIndicesVertex = std::move(o.m_subroutineIndicesVertex);
+		m_subroutineIndicesFragment = std::move(o.m_subroutineIndicesFragment);
+		m_locations = std::move(o.m_locations);
+	}
 	return *this;
 }
 
